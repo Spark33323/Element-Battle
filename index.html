@@ -1,0 +1,2960 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>化學版球球大作戰 (修复版)</title>
+    <style>
+        /* Base styles */
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #0a0a2a;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #gameCanvas {
+            background-color: #0a0a2a;
+            box-shadow: 0 0 10px rgba(0, 100, 255, 0.5);
+        }
+        
+        #loadingScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0a0a2a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        #loadingBar {
+            width: 300px;
+            height: 20px;
+            background-color: #111;
+            border-radius: 10px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        
+        #loadingProgress {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #9b59b6);
+            border-radius: 10px;
+            transition: width 0.3s;
+        }
+        
+        #loadingText {
+            margin-top: 10px;
+            font-size: 16px;
+            color: #ccc;
+        }
+        
+        #errorMessage {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(200, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 200;
+            display: none;
+        }
+        
+        #gameUI {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Allow clicks to pass through to canvas by default */
+        }
+        
+        #scoreDisplay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 28px;
+            color: white;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        #elementInfo {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 20px; /* Adjusted for more text */
+            color: white;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            text-align: right;
+            max-width: 250px; /* Added to constrain width */
+        }
+        
+        #mainMenu, #gameOverScreen, #leaderboardScreen, #contributionScreen { /* Added #contributionScreen */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(10, 10, 42, 0.85); /* Slightly more opaque */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 150;
+            pointer-events: auto; /* Ensure these screens capture clicks */
+            overflow-y: auto; /* For scrolling if content is long */
+        }
+        
+        #leaderboardScreen, #contributionScreen { /* #contributionScreen starts hidden */
+            display: none;
+        }
+        
+        #leaderboardList {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+            width: 80%;
+            max-width: 400px;
+            text-align: left;
+        }
+        
+        #leaderboardList li {
+            background-color: rgba(52, 73, 94, 0.7);
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            font-size: 18px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Styles for Contribution Form */
+        #contributionForm {
+            width: 80%;
+            max-width: 550px; /* Slightly wider for form */
+            background-color: rgba(0,0,0,0.4); /* Darker background for form area */
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.3);
+        }
+        #contributionForm label {
+            display: block;
+            margin-top: 12px;
+            margin-bottom: 4px;
+            font-size: 16px;
+            color: #bdc3c7; /* Lighter label color */
+        }
+        #contributionForm input[type="text"],
+        #contributionForm textarea {
+            width: calc(100% - 20px); /* Adjust for padding */
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid #34495e;
+            background-color: #2c3e50;
+            color: white;
+            font-size: 15px;
+        }
+        #contributionForm textarea {
+            min-height: 60px;
+            resize: vertical;
+        }
+        #contributionForm #contribCorrectAnswerGroup label {
+            display: inline-block; /* Radio labels inline */
+            margin-right: 15px;
+            font-size: 14px;
+            color: #ecf0f1;
+        }
+         #contributionForm #contribCorrectAnswerGroup input[type="radio"] {
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        #contributionForm .button { /* Specific styling for buttons within the form */
+            width: auto; /* Auto width for form buttons */
+            padding: 12px 25px;
+            margin-top: 15px;
+        }
+        
+        .menuTitle {
+            font-size: 48px;
+            color: white;
+            margin-bottom: 40px;
+            text-shadow: 0 0 10px rgba(100, 200, 255, 0.8);
+        }
+        
+        .button {
+            background: linear-gradient(180deg, #3498db, #2980b9);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            padding: 15px 30px;
+            font-size: 20px;
+            margin: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: auto; 
+            z-index: 160; 
+        }
+        
+        .button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.8);
+        }
+        
+        #gameOverScreen {
+            display: none;
+        }
+        
+        #finalScore {
+            font-size: 36px;
+            color: white;
+            margin: 20px 0;
+        }
+        
+        #notification {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 18px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1001; /* Ensure notification is on top */
+        }
+        
+        #evolutionBar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        #evolutionProgress {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #9b59b6);
+            border-radius: 10px;
+            transition: width 0.3s;
+        }
+        
+        #evolutionText {
+            position: absolute;
+            bottom: 45px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 16px;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        #debugPanel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: #0f0;
+            padding: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 100px;
+            width: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        
+        #languageSwitcher {
+            position: absolute;
+            top: 20px;
+            right: 300px; 
+            z-index: 160;
+            pointer-events: auto; 
+        }
+        
+        #languageSwitcher button {
+            background-color: #34495e;
+            border: 1px solid #2c3e50;
+            color: white;
+            padding: 5px 10px;
+            margin-left: 5px;
+            cursor: pointer;
+            border-radius: 3px;
+            z-index: 161; 
+        }
+        
+        #languageSwitcher button.active {
+            background-color: #3498db;
+        }
+        
+        #synthesisPanel {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            font-size: 14px;
+            text-align: center;
+            z-index: 100;
+            display: none;
+            pointer-events: auto; 
+        }
+        
+        #synthesisPanel h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+        }
+        
+        #synthesisList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        #synthesisList li {
+            margin-bottom: 3px;
+        }
+        
+        #skillBar {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            pointer-events: auto; 
+        }
+        
+        .skillButton {
+            width: 40px;
+            height: 40px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 2px solid #555;
+            border-radius: 5px;
+            color: white;
+            font-size: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            pointer-events: auto;
+            cursor: pointer;
+            z-index: 101; 
+        }
+        
+        .skillButton.ready {
+            border-color: #3498db;
+        }
+        
+        .skillButton.active {
+            border-color: #e74c3c;
+            background-color: rgba(200, 0, 0, 0.5);
+        }
+        
+        .skillCooldown {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            background-color: rgba(0, 0, 0, 0.7);
+            transition: height 0.1s linear;
+        }
+        
+        .skillKey {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 1px 3px;
+            border-radius: 2px;
+        }
+        
+        #quizContainer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(10, 10, 42, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(100, 200, 255, 0.8);
+            color: white;
+            text-align: center;
+            z-index: 1000;
+            min-width: 300px;
+            max-width: 80%;
+            display: none;
+            pointer-events: auto; 
+        }
+        
+        #quizQuestion {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        .quizOption {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #3498db;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 1001; 
+        }
+        
+        .quizOption:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="loadingScreen">
+            <h1 class="menuTitle" data-i18n="gameTitle">化學版球球大作戰</h1>
+            <div id="loadingBar">
+                <div id="loadingProgress"></div>
+            </div>
+            <div id="loadingText" data-i18n="loading">正在加載遊戲...</div>
+        </div>
+        
+        <div id="errorMessage"></div>
+        
+        <div id="gameUI">
+            <div id="scoreDisplay" data-i18n="score">分數: 0</div>
+            <div id="elementInfo">H<br>氫 (Hydrogen)</div>
+            <div id="evolutionBar">
+                <div id="evolutionProgress"></div>
+            </div>
+            <div id="evolutionText" data-i18n="evolutionProgress">進化進度: 0% (下一個元素: He)</div>
+            <div id="notification"></div>
+            <div id="languageSwitcher">
+                <button data-lang="zh">中文</button>
+                <button data-lang="en">EN</button>
+                <button data-lang="ja">日本語</button>
+            </div>
+            <div id="synthesisPanel">
+                <h3 data-i18n="synthesisTitle">合成面板</h3>
+                <ul id="synthesisList"></ul>
+            </div>
+            <div id="skillBar">
+                </div>
+        </div>
+        
+        <div id="mainMenu">
+            <h1 class="menuTitle" data-i18n="gameTitle">化學版球球大作戰</h1>
+            <button id="startButton" class="button" data-i18n="startGame">開始遊戲</button>
+            <button id="leaderboardButton" class="button" data-i18n="leaderboard">排行榜</button>
+            <button id="instructionsButton" class="button" data-i18n="instructions">遊戲說明</button>
+            <button id="questionContributionButton" class="button" data-i18n="questionContribution">貢獻題目</button>
+        </div>
+        
+        <div id="gameOverScreen">
+            <h1 class="menuTitle" data-i18n="gameOver">遊戲結束</h1>
+            <div id="finalScore" data-i18n="finalScore">最終分數: 0</div>
+            <button id="restartButton" class="button" data-i18n="restart">重新開始</button>
+            <button id="menuButton" class="button" data-i18n="mainMenu">返回主菜單</button> </div>
+        
+        <div id="leaderboardScreen">
+            <h1 class="menuTitle" data-i18n="leaderboard">排行榜</h1>
+            <ul id="leaderboardList"></ul>
+            <button id="backToMenuButton" class="button" data-i18n="backToMenu">返回主菜單</button>
+        </div>
+
+        <div id="contributionScreen">
+            <h1 class="menuTitle" data-i18n="contributionTitle">題目貢獻</h1>
+            <div id="contributionForm">
+                <label for="contribQuestion" data-i18n="contribFormQuestion">問題:</label>
+                <textarea id="contribQuestion" rows="3"></textarea>
+
+                <label for="contribOpt1" data-i18n="contribFormOpt1">選項 1:</label>
+                <input type="text" id="contribOpt1">
+                <label for="contribOpt2" data-i18n="contribFormOpt2">選項 2:</label>
+                <input type="text" id="contribOpt2">
+                <label for="contribOpt3" data-i18n="contribFormOpt3">選項 3:</label>
+                <input type="text" id="contribOpt3">
+                <label for="contribOpt4" data-i18n="contribFormOpt4">選項 4:</label>
+                <input type="text" id="contribOpt4">
+
+                <label data-i18n="contribFormCorrect">正確答案:</label>
+                <div id="contribCorrectAnswerGroup">
+                    <input type="radio" name="correctContrib" value="0" id="correctOpt1" checked> <label for="correctOpt1" data-i18n="contribFormOpt1Label">選項 1</label>
+                    <input type="radio" name="correctContrib" value="1" id="correctOpt2"> <label for="correctOpt2" data-i18n="contribFormOpt2Label">選項 2</label>
+                    <input type="radio" name="correctContrib" value="2" id="correctOpt3"> <label for="correctOpt3" data-i18n="contribFormOpt3Label">選項 3</label>
+                    <input type="radio" name="correctContrib" value="3" id="correctOpt4"> <label for="correctOpt4" data-i18n="contribFormOpt4Label">選項 4</label>
+                </div>
+
+                <button id="submitContributionButton" class="button" data-i18n="submitContribution">提交貢獻</button>
+                <button id="backToMenuFromContribButton" class="button" data-i18n="backToMenu">返回主菜單</button>
+            </div>
+        </div>
+        
+        <div id="quizContainer">
+            <div id="quizQuestion"></div>
+            <div id="quizOptions"></div>
+        </div>
+        
+        <div id="debugPanel">調試信息:<br></div>
+    </div>
+
+    <script>
+        // --- Start of Combined JavaScript --- 
+
+        // --- periodic_table_data.js ---
+        class PeriodicTableData {
+            constructor() {
+                this.elements = this.defineElements();
+                this.categories = this.defineCategories();
+            }
+
+            defineElements() {
+                // Complete periodic table with all 118 elements
+                return {
+                    // Period 1
+                    1: { symbol: 'H', name: '氫', fullName: 'Hydrogen', color: '#3498db', maxNeutrons: 2, category: 'non_metal', description: 'The lightest and most abundant element in the universe.' },
+                    2: { symbol: 'He', name: '氦', fullName: 'Helium', color: '#9b59b6', maxNeutrons: 8, category: 'noble_gas', description: 'An inert gas used in balloons and cryogenics.' },
+                    
+                    // Period 2
+                    3: { symbol: 'Li', name: '鋰', fullName: 'Lithium', color: '#e74c3c', maxNeutrons: 5, category: 'alkali_metal', description: 'Used in batteries and psychiatric medications.' },
+                    4: { symbol: 'Be', name: '鈹', fullName: 'Beryllium', color: '#f1c40f', maxNeutrons: 6, category: 'alkaline_earth', description: 'Used in aerospace components and X-ray equipment.' },
+                    5: { symbol: 'B', name: '硼', fullName: 'Boron', color: '#27ae60', maxNeutrons: 8, category: 'metalloid', description: 'Found in borax and used in detergents.' },
+                    6: { symbol: 'C', name: '碳', fullName: 'Carbon', color: '#2c3e50', maxNeutrons: 8, category: 'non_metal', description: 'The basis of organic chemistry and life.' },
+                    7: { symbol: 'N', name: '氮', fullName: 'Nitrogen', color: '#3498db', maxNeutrons: 9, category: 'non_metal', description: 'Makes up 78% of Earth\'s atmosphere.' },
+                    8: { symbol: 'O', name: '氧', fullName: 'Oxygen', color: '#e74c3c', maxNeutrons: 10, category: 'non_metal', description: 'Essential for respiration in most living organisms.' },
+                    9: { symbol: 'F', name: '氟', fullName: 'Fluorine', color: '#f1c40f', maxNeutrons: 10, category: 'halogen', description: 'The most reactive non-metal element.' },
+                    10: { symbol: 'Ne', name: '氖', fullName: 'Neon', color: '#9b59b6', maxNeutrons: 12, category: 'noble_gas', description: 'Used in illuminated signs with its distinctive red-orange glow.' },
+                    
+                    // Period 3
+                    11: { symbol: 'Na', name: '鈉', fullName: 'Sodium', color: '#e67e22', maxNeutrons: 13, category: 'alkali_metal', description: 'A soft metal that reacts vigorously with water.' },
+                    12: { symbol: 'Mg', name: '鎂', fullName: 'Magnesium', color: '#d35400', maxNeutrons: 14, category: 'alkaline_earth', description: 'Used in lightweight alloys and fireworks.' },
+                    13: { symbol: 'Al', name: '鋁', fullName: 'Aluminum', color: '#95a5a6', maxNeutrons: 15, category: 'post_transition_metal', description: 'The most abundant metal in Earth\'s crust.' },
+                    14: { symbol: 'Si', name: '矽', fullName: 'Silicon', color: '#7f8c8d', maxNeutrons: 16, category: 'metalloid', description: 'The basis of computer chips and electronics.' },
+                    15: { symbol: 'P', name: '磷', fullName: 'Phosphorus', color: '#f39c12', maxNeutrons: 17, category: 'non_metal', description: 'Essential for DNA, RNA, and ATP in living organisms.' },
+                    16: { symbol: 'S', name: '硫', fullName: 'Sulfur', color: '#f1c40f', maxNeutrons: 20, category: 'non_metal', description: 'Known for its yellow color and distinctive odor.' },
+                    17: { symbol: 'Cl', name: '氯', fullName: 'Chlorine', color: '#27ae60', maxNeutrons: 22, category: 'halogen', description: 'Used in water purification and bleaching.' },
+                    18: { symbol: 'Ar', name: '氬', fullName: 'Argon', color: '#9b59b6', maxNeutrons: 23, category: 'noble_gas', description: 'The third most abundant gas in Earth\'s atmosphere.' },
+                    
+                    // Period 4
+                    19: { symbol: 'K', name: '鉀', fullName: 'Potassium', color: '#e74c3c', maxNeutrons: 22, category: 'alkali_metal', description: 'Essential for nerve function in animals.' },
+                    20: { symbol: 'Ca', name: '鈣', fullName: 'Calcium', color: '#d35400', maxNeutrons: 28, category: 'alkaline_earth', description: 'Essential for bones, teeth, and muscle function.' },
+                    21: { symbol: 'Sc', name: '鈧', fullName: 'Scandium', color: '#3498db', maxNeutrons: 26, category: 'transition_metal', description: 'Used in aerospace components and sports equipment.' },
+                    22: { symbol: 'Ti', name: '鈦', fullName: 'Titanium', color: '#7f8c8d', maxNeutrons: 28, category: 'transition_metal', description: 'Strong, lightweight metal used in aerospace and medical implants.' },
+                    23: { symbol: 'V', name: '釩', fullName: 'Vanadium', color: '#9b59b6', maxNeutrons: 30, category: 'transition_metal', description: 'Used in steel alloys for tools and construction.' },
+                    24: { symbol: 'Cr', name: '鉻', fullName: 'Chromium', color: '#2ecc71', maxNeutrons: 30, category: 'transition_metal', description: 'Used in stainless steel and chrome plating.' },
+                    25: { symbol: 'Mn', name: '錳', fullName: 'Manganese', color: '#e74c3c', maxNeutrons: 32, category: 'transition_metal', description: 'Essential trace element for many living organisms.' },
+                    26: { symbol: 'Fe', name: '鐵', fullName: 'Iron', color: '#e67e22', maxNeutrons: 34, category: 'transition_metal', description: 'The most common element on Earth by mass.' },
+                    27: { symbol: 'Co', name: '鈷', fullName: 'Cobalt', color: '#3498db', maxNeutrons: 35, category: 'transition_metal', description: 'Used in magnets and rechargeable batteries.' },
+                    28: { symbol: 'Ni', name: '鎳', fullName: 'Nickel', color: '#95a5a6', maxNeutrons: 36, category: 'transition_metal', description: 'Used in coins, stainless steel, and batteries.' },
+                    29: { symbol: 'Cu', name: '銅', fullName: 'Copper', color: '#d35400', maxNeutrons: 38, category: 'transition_metal', description: 'Excellent conductor used in electrical wiring.' },
+                    30: { symbol: 'Zn', name: '鋅', fullName: 'Zinc', color: '#7f8c8d', maxNeutrons: 40, category: 'transition_metal', description: 'Used in galvanizing iron and in dietary supplements.' },
+                    31: { symbol: 'Ga', name: '鎵', fullName: 'Gallium', color: '#3498db', maxNeutrons: 42, category: 'post_transition_metal', description: 'Has a very low melting point and can melt in your hand.' },
+                    32: { symbol: 'Ge', name: '鍺', fullName: 'Germanium', color: '#7f8c8d', maxNeutrons: 44, category: 'metalloid', description: 'Used in fiber optics and infrared optics.' },
+                    33: { symbol: 'As', name: '砷', fullName: 'Arsenic', color: '#f39c12', maxNeutrons: 46, category: 'metalloid', description: 'Known for its toxicity, used in wood preservatives.' },
+                    34: { symbol: 'Se', name: '硒', fullName: 'Selenium', color: '#f1c40f', maxNeutrons: 48, category: 'non_metal', description: 'Essential trace element for humans and animals.' },
+                    35: { symbol: 'Br', name: '溴', fullName: 'Bromine', color: '#27ae60', maxNeutrons: 50, category: 'halogen', description: 'One of only two elements that are liquid at room temperature.' },
+                    36: { symbol: 'Kr', name: '氪', fullName: 'Krypton', color: '#9b59b6', maxNeutrons: 52, category: 'noble_gas', description: 'Used in high-powered photographic flashes.' },
+                    
+                    // Period 5
+                    37: { symbol: 'Rb', name: '銣', fullName: 'Rubidium', color: '#e74c3c', maxNeutrons: 54, category: 'alkali_metal', description: 'Used in atomic clocks and vacuum tubes.' },
+                    38: { symbol: 'Sr', name: '鍶', fullName: 'Strontium', color: '#d35400', maxNeutrons: 56, category: 'alkaline_earth', description: 'Gives fireworks their bright red color.' },
+                    39: { symbol: 'Y', name: '釔', fullName: 'Yttrium', color: '#3498db', maxNeutrons: 58, category: 'transition_metal', description: 'Used in LED lights and cancer treatments.' },
+                    40: { symbol: 'Zr', name: '鋯', fullName: 'Zirconium', color: '#7f8c8d', maxNeutrons: 60, category: 'transition_metal', description: 'Used in nuclear reactors and ceramic knives.' },
+                    41: { symbol: 'Nb', name: '鈮', fullName: 'Niobium', color: '#9b59b6', maxNeutrons: 62, category: 'transition_metal', description: 'Used in superconducting magnets.' },
+                    42: { symbol: 'Mo', name: '鉬', fullName: 'Molybdenum', color: '#2ecc71', maxNeutrons: 64, category: 'transition_metal', description: 'Essential trace element for plants and animals.' },
+                    43: { symbol: 'Tc', name: '鎝', fullName: 'Technetium', color: '#e74c3c', maxNeutrons: 66, category: 'transition_metal', description: 'The lightest element with no stable isotopes.' },
+                    44: { symbol: 'Ru', name: '釕', fullName: 'Ruthenium', color: '#e67e22', maxNeutrons: 68, category: 'transition_metal', description: 'Used in electrical contacts and wear-resistant alloys.' },
+                    45: { symbol: 'Rh', name: '銠', fullName: 'Rhodium', color: '#3498db', maxNeutrons: 70, category: 'transition_metal', description: 'Used in catalytic converters for vehicles.' },
+                    46: { symbol: 'Pd', name: '鈀', fullName: 'Palladium', color: '#95a5a6', maxNeutrons: 72, category: 'transition_metal', description: 'Used in catalytic converters and jewelry.' },
+                    47: { symbol: 'Ag', name: '銀', fullName: 'Silver', color: '#d35400', maxNeutrons: 74, category: 'transition_metal', description: 'Highest electrical conductivity of any element.' },
+                    48: { symbol: 'Cd', name: '鎘', fullName: 'Cadmium', color: '#7f8c8d', maxNeutrons: 76, category: 'transition_metal', description: 'Used in rechargeable batteries and pigments.' },
+                    49: { symbol: 'In', name: '銦', fullName: 'Indium', color: '#3498db', maxNeutrons: 78, category: 'post_transition_metal', description: 'Used in touchscreens and flat-panel displays.' },
+                    50: { symbol: 'Sn', name: '錫', fullName: 'Tin', color: '#7f8c8d', maxNeutrons: 80, category: 'post_transition_metal', description: 'Used in solder and tin cans.' },
+                    51: { symbol: 'Sb', name: '銻', fullName: 'Antimony', color: '#f39c12', maxNeutrons: 82, category: 'metalloid', description: 'Used in flame retardants and batteries.' },
+                    52: { symbol: 'Te', name: '碲', fullName: 'Tellurium', color: '#f1c40f', maxNeutrons: 84, category: 'metalloid', description: 'Used in solar panels and thermoelectric devices.' },
+                    53: { symbol: 'I', name: '碘', fullName: 'Iodine', color: '#27ae60', maxNeutrons: 86, category: 'halogen', description: 'Essential for thyroid function in humans.' },
+                    54: { symbol: 'Xe', name: '氙', fullName: 'Xenon', color: '#9b59b6', maxNeutrons: 88, category: 'noble_gas', description: 'Used in camera flashes and high-intensity lamps.' },
+                    
+                    // Period 6
+                    55: { symbol: 'Cs', name: '銫', fullName: 'Cesium', color: '#e74c3c', maxNeutrons: 90, category: 'alkali_metal', description: 'Used in atomic clocks, the most accurate timekeeping devices.' },
+                    56: { symbol: 'Ba', name: '鋇', fullName: 'Barium', color: '#d35400', maxNeutrons: 92, category: 'alkaline_earth', description: 'Used in medical imaging of the digestive system.' },
+                    57: { symbol: 'La', name: '鑭', fullName: 'Lanthanum', color: '#3498db', maxNeutrons: 94, category: 'lanthanide', description: 'Used in high-refractive-index glass for cameras.' },
+                    58: { symbol: 'Ce', name: '鈰', fullName: 'Cerium', color: '#7f8c8d', maxNeutrons: 96, category: 'lanthanide', description: 'Used in catalytic converters and self-cleaning ovens.' },
+                    59: { symbol: 'Pr', name: '鐠', fullName: 'Praseodymium', color: '#9b59b6', maxNeutrons: 98, category: 'lanthanide', description: 'Used in high-strength magnets and specialized glasses.' },
+                    60: { symbol: 'Nd', name: '釹', fullName: 'Neodymium', color: '#2ecc71', maxNeutrons: 100, category: 'lanthanide', description: 'Used in powerful permanent magnets for headphones and hard drives.' },
+                    61: { symbol: 'Pm', name: '鉕', fullName: 'Promethium', color: '#e74c3c', maxNeutrons: 102, category: 'lanthanide', description: 'Used in atomic batteries for spacecraft and pacemakers.' },
+                    62: { symbol: 'Sm', name: '釤', fullName: 'Samarium', color: '#e67e22', maxNeutrons: 104, category: 'lanthanide', description: 'Used in magnets that work at high temperatures.' },
+                    63: { symbol: 'Eu', name: '銪', fullName: 'Europium', color: '#3498db', maxNeutrons: 106, category: 'lanthanide', description: 'Used in red phosphors for TV screens and anti-counterfeiting marks in Euro banknotes.' },
+                    64: { symbol: 'Gd', name: '釓', fullName: 'Gadolinium', color: '#95a5a6', maxNeutrons: 108, category: 'lanthanide', description: 'Used in MRI contrast agents and neutron radiography.' },
+                    65: { symbol: 'Tb', name: '鋱', fullName: 'Terbium', color: '#d35400', maxNeutrons: 110, category: 'lanthanide', description: 'Used in green phosphors for display screens.' },
+                    66: { symbol: 'Dy', name: '鏑', fullName: 'Dysprosium', color: '#7f8c8d', maxNeutrons: 112, category: 'lanthanide', description: 'Used in hard disk drives and high-intensity lighting.' },
+                    67: { symbol: 'Ho', name: '鈥', fullName: 'Holmium', color: '#3498db', maxNeutrons: 114, category: 'lanthanide', description: 'Has the strongest magnetic properties of any element.' },
+                    68: { symbol: 'Er', name: '鉺', fullName: 'Erbium', color: '#7f8c8d', maxNeutrons: 116, category: 'lanthanide', description: 'Used in fiber optic communications and laser surgery.' },
+                    69: { symbol: 'Tm', name: '銩', fullName: 'Thulium', color: '#f39c12', maxNeutrons: 118, category: 'lanthanide', description: 'Used in portable X-ray machines and lasers.' },
+                    70: { symbol: 'Yb', name: '鐿', fullName: 'Ytterbium', color: '#f1c40f', maxNeutrons: 120, category: 'lanthanide', description: 'Used in infrared lasers and as a radiation source.' },
+                    71: { symbol: 'Lu', name: '鑥', fullName: 'Lutetium', color: '#27ae60', maxNeutrons: 122, category: 'lanthanide', description: 'Used in petroleum refining and positron emission tomography (PET) scans.' },
+                    72: { symbol: 'Hf', name: '鉿', fullName: 'Hafnium', color: '#9b59b6', maxNeutrons: 124, category: 'transition_metal', description: 'Used in nuclear reactor control rods and plasma cutting tips.' },
+                    73: { symbol: 'Ta', name: '鉭', fullName: 'Tantalum', color: '#e74c3c', maxNeutrons: 126, category: 'transition_metal', description: 'Used in electronic components and surgical implants.' },
+                    74: { symbol: 'W', name: '鎢', fullName: 'Tungsten', color: '#d35400', maxNeutrons: 128, category: 'transition_metal', description: 'Has the highest melting point of all elements, used in light bulb filaments.' },
+                    75: { symbol: 'Re', name: '錸', fullName: 'Rhenium', color: '#3498db', maxNeutrons: 130, category: 'transition_metal', description: 'Used in high-temperature superalloys for jet engines.' },
+                    76: { symbol: 'Os', name: '鋨', fullName: 'Osmium', color: '#7f8c8d', maxNeutrons: 132, category: 'transition_metal', description: 'The densest naturally occurring element.' },
+                    77: { symbol: 'Ir', name: '銥', fullName: 'Iridium', color: '#9b59b6', maxNeutrons: 134, category: 'transition_metal', description: 'The most corrosion-resistant metal, used in spark plugs.' },
+                    78: { symbol: 'Pt', name: '鉑', fullName: 'Platinum', color: '#2ecc71', maxNeutrons: 136, category: 'transition_metal', description: 'Used in catalytic converters and jewelry.' },
+                    79: { symbol: 'Au', name: '金', fullName: 'Gold', color: '#f1c40f', maxNeutrons: 138, category: 'transition_metal', description: 'Highly valued precious metal used in jewelry and electronics.' },
+                    80: { symbol: 'Hg', name: '汞', fullName: 'Mercury', color: '#e67e22', maxNeutrons: 140, category: 'transition_metal', description: 'The only metal that is liquid at room temperature.' },
+                    81: { symbol: 'Tl', name: '鉈', fullName: 'Thallium', color: '#3498db', maxNeutrons: 142, category: 'post_transition_metal', description: 'Highly toxic, once used in rat poisons and insecticides.' },
+                    82: { symbol: 'Pb', name: '鉛', fullName: 'Lead', color: '#95a5a6', maxNeutrons: 144, category: 'post_transition_metal', description: 'Used in batteries and radiation shielding.' },
+                    83: { symbol: 'Bi', name: '鉍', fullName: 'Bismuth', color: '#d35400', maxNeutrons: 146, category: 'post_transition_metal', description: 'Used in cosmetics, medicines, and low-melting alloys.' },
+                    84: { symbol: 'Po', name: '釙', fullName: 'Polonium', color: '#7f8c8d', maxNeutrons: 148, category: 'metalloid', description: 'Highly radioactive element discovered by Marie Curie.' },
+                    85: { symbol: 'At', name: '砹', fullName: 'Astatine', color: '#f39c12', maxNeutrons: 150, category: 'halogen', description: 'The rarest naturally occurring element in Earth\'s crust.' },
+                    86: { symbol: 'Rn', name: '氡', fullName: 'Radon', color: '#9b59b6', maxNeutrons: 152, category: 'noble_gas', description: 'Radioactive gas that can accumulate in buildings.' },
+                    
+                    // Period 7
+                    87: { symbol: 'Fr', name: '鍅', fullName: 'Francium', color: '#e74c3c', maxNeutrons: 154, category: 'alkali_metal', description: 'Extremely rare and highly radioactive.' },
+                    88: { symbol: 'Ra', name: '鐳', fullName: 'Radium', color: '#d35400', maxNeutrons: 156, category: 'alkaline_earth', description: 'Radioactive element once used in luminous paint.' },
+                    89: { symbol: 'Ac', name: '錒', fullName: 'Actinium', color: '#3498db', maxNeutrons: 158, category: 'actinide', description: 'Used in neutron sources and radiation therapy.' },
+                    90: { symbol: 'Th', name: '釷', fullName: 'Thorium', color: '#7f8c8d', maxNeutrons: 160, category: 'actinide', description: 'Potential nuclear fuel that is more abundant than uranium.' },
+                    91: { symbol: 'Pa', name: '鏷', fullName: 'Protactinium', color: '#9b59b6', maxNeutrons: 162, category: 'actinide', description: 'Rare and highly radioactive element.' },
+                    92: { symbol: 'U', name: '鈾', fullName: 'Uranium', color: '#2ecc71', maxNeutrons: 164, category: 'actinide', description: 'Used as fuel in nuclear power plants.' },
+                    93: { symbol: 'Np', name: '鎿', fullName: 'Neptunium', color: '#e74c3c', maxNeutrons: 166, category: 'actinide', description: 'Used in neutron detection equipment.' },
+                    94: { symbol: 'Pu', name: '鈽', fullName: 'Plutonium', color: '#e67e22', maxNeutrons: 168, category: 'actinide', description: 'Used in nuclear weapons and spacecraft power sources.' },
+                    95: { symbol: 'Am', name: '鋂', fullName: 'Americium', color: '#3498db', maxNeutrons: 170, category: 'actinide', description: 'Used in smoke detectors and industrial gauges.' },
+                    96: { symbol: 'Cm', name: '鋦', fullName: 'Curium', color: '#95a5a6', maxNeutrons: 172, category: 'actinide', description: 'Used in scientific research and as a power source for space missions.' },
+                    97: { symbol: 'Bk', name: '錇', fullName: 'Berkelium', color: '#d35400', maxNeutrons: 174, category: 'actinide', description: 'Synthetic element used only in scientific research.' },
+                    98: { symbol: 'Cf', name: '鐦', fullName: 'Californium', color: '#7f8c8d', maxNeutrons: 176, category: 'actinide', description: 'Used in portable metal detectors and moisture gauges.' },
+                    99: { symbol: 'Es', name: '鑀', fullName: 'Einsteinium', color: '#3498db', maxNeutrons: 178, category: 'actinide', description: 'Named after Albert Einstein, extremely rare.' },
+                    100: { symbol: 'Fm', name: '鐨', fullName: 'Fermium', color: '#7f8c8d', maxNeutrons: 180, category: 'actinide', description: 'Named after Enrico Fermi, only used in research.' },
+                    101: { symbol: 'Md', name: '鍆', fullName: 'Mendelevium', color: '#f39c12', maxNeutrons: 182, category: 'actinide', description: 'Named after Dmitri Mendeleev, creator of the periodic table.' },
+                    102: { symbol: 'No', name: '鍩', fullName: 'Nobelium', color: '#f1c40f', maxNeutrons: 184, category: 'actinide', description: 'Named after Alfred Nobel, founder of the Nobel Prize.' },
+                    103: { symbol: 'Lr', name: '鐒', fullName: 'Lawrencium', color: '#27ae60', maxNeutrons: 186, category: 'actinide', description: 'Named after Ernest Lawrence, inventor of the cyclotron.' },
+                    104: { symbol: 'Rf', name: '鑪', fullName: 'Rutherfordium', color: '#9b59b6', maxNeutrons: 188, category: 'transition_metal', description: 'Named after Ernest Rutherford, pioneer in nuclear physics.' },
+                    105: { symbol: 'Db', name: '𨧀', fullName: 'Dubnium', color: '#e74c3c', maxNeutrons: 190, category: 'transition_metal', description: 'Named after Dubna, Russia, where it was discovered.' },
+                    106: { symbol: 'Sg', name: '𨭎', fullName: 'Seaborgium', color: '#d35400', maxNeutrons: 192, category: 'transition_metal', description: 'Named after Glenn Seaborg, discoverer of many transuranium elements.' },
+                    107: { symbol: 'Bh', name: '𨨏', fullName: 'Bohrium', color: '#3498db', maxNeutrons: 194, category: 'transition_metal', description: 'Named after Niels Bohr, pioneer in atomic theory.' },
+                    108: { symbol: 'Hs', name: '𨭆', fullName: 'Hassium', color: '#7f8c8d', maxNeutrons: 196, category: 'transition_metal', description: 'Named after the German state of Hesse.' },
+                    109: { symbol: 'Mt', name: '鿏', fullName: 'Meitnerium', color: '#9b59b6', maxNeutrons: 198, category: 'transition_metal', description: 'Named after Lise Meitner, pioneer in nuclear fission.' },
+                    110: { symbol: 'Ds', name: '𨧻', fullName: 'Darmstadtium', color: '#2ecc71', maxNeutrons: 200, category: 'transition_metal', description: 'Named after Darmstadt, Germany, where it was discovered.' },
+                    111: { symbol: 'Rg', name: '𨭊', fullName: 'Roentgenium', color: '#e67e22', maxNeutrons: 202, category: 'transition_metal', description: 'Named after Wilhelm Röntgen, discoverer of X-rays.' },
+                    112: { symbol: 'Cn', name: '鎶', fullName: 'Copernicium', color: '#3498db', maxNeutrons: 204, category: 'transition_metal', description: 'Named after Nicolaus Copernicus, astronomer.' },
+                    113: { symbol: 'Nh', name: '鉨', fullName: 'Nihonium', color: '#95a5a6', maxNeutrons: 206, category: 'post_transition_metal', description: 'Named after Japan (Nihon), where it was discovered.' },
+                    114: { symbol: 'Fl', name: '鈇', fullName: 'Flerovium', color: '#d35400', maxNeutrons: 208, category: 'post_transition_metal', description: 'Named after Flerov Laboratory in Russia.' },
+                    115: { symbol: 'Mc', name: '鏌', fullName: 'Moscovium', color: '#7f8c8d', maxNeutrons: 210, category: 'post_transition_metal', description: 'Named after Moscow, Russia.' },
+                    116: { symbol: 'Lv', name: '鉝', fullName: 'Livermorium', color: '#f39c12', maxNeutrons: 212, category: 'post_transition_metal', description: 'Named after Lawrence Livermore National Laboratory.' },
+                    117: { symbol: 'Ts', name: '鿬', fullName: 'Tennessine', color: '#f1c40f', maxNeutrons: 214, category: 'halogen', description: 'Named after Tennessee, USA.' },
+                    118: { symbol: 'Og', name: '鿫', fullName: 'Oganesson', color: '#9b59b6', maxNeutrons: 216, category: 'noble_gas', description: 'Named after Yuri Oganessian, nuclear physicist.' }
+                };
+            }
+
+            defineCategories() {
+                // Define element categories with properties and colors
+                return {
+                    'alkali_metal': {
+                        name: {
+                            'en': 'Alkali Metals',
+                            'zh': '碱金属',
+                            'ja': 'アルカリ金属'
+                        },
+                        color: '#e74c3c',
+                        description: {
+                            'en': 'Highly reactive metals that form strong bases with water',
+                            'zh': '高反应性金属，与水形成强碱',
+                            'ja': '水と反応して強塩基を形成する高反応性金属'
+                        },
+                        skill: 'corrosion_aura'
+                    },
+                    'alkaline_earth': {
+                        name: {
+                            'en': 'Alkaline Earth Metals',
+                            'zh': '碱土金属',
+                            'ja': 'アルカリ土類金属'
+                        },
+                        color: '#d35400',
+                        description: {
+                            'en': 'Reactive metals that form alkaline oxides',
+                            'zh': '反应性金属，形成碱性氧化物',
+                            'ja': 'アルカリ性酸化物を形成する反応性金属'
+                        },
+                        skill: 'earth_shield'
+                    },
+                    'transition_metal': {
+                        name: {
+                            'en': 'Transition Metals',
+                            'zh': '过渡金属',
+                            'ja': '遷移金属'
+                        },
+                        color: '#3498db',
+                        description: {
+                            'en': 'Metals with partially filled d orbitals',
+                            'zh': '具有部分填充d轨道的金属',
+                            'ja': '部分的に満たされたd軌道を持つ金属'
+                        },
+                        skill: 'metallic_boost'
+                    },
+                    'post_transition_metal': {
+                        name: {
+                            'en': 'Post-Transition Metals',
+                            'zh': '后过渡金属',
+                            'ja': '後遷移金属'
+                        },
+                        color: '#95a5a6',
+                        description: {
+                            'en': 'Metals with completely filled d orbitals',
+                            'zh': '具有完全填充d轨道的金属',
+                            'ja': '完全に満たされたd軌道を持つ金属'
+                        },
+                        skill: 'metallic_boost' // Example skill, can be different
+                    },
+                    'metalloid': {
+                        name: {
+                            'en': 'Metalloids',
+                            'zh': '类金属',
+                            'ja': '半金属'
+                        },
+                        color: '#7f8c8d',
+                        description: {
+                            'en': 'Elements with properties of both metals and non-metals',
+                            'zh': '具有金属和非金属性质的元素',
+                            'ja': '金属と非金属の両方の特性を持つ元素'
+                        },
+                        skill: 'decoy_creation'
+                    },
+                    'non_metal': {
+                        name: {
+                            'en': 'Non-Metals',
+                            'zh': '非金属',
+                            'ja': '非金属'
+                        },
+                        color: '#2ecc71',
+                        description: {
+                            'en': 'Elements that are poor conductors of heat and electricity',
+                            'zh': '热和电的不良导体元素',
+                            'ja': '熱と電気の伝導性が低い元素'
+                        },
+                        skill: 'covalent_bond'
+                    },
+                    'halogen': {
+                        name: {
+                            'en': 'Halogens',
+                            'zh': '卤素',
+                            'ja': 'ハロゲン'
+                        },
+                        color: '#27ae60',
+                        description: {
+                            'en': 'Highly reactive non-metals that form salts with metals',
+                            'zh': '与金属形成盐的高反应性非金属',
+                            'ja': '金属と塩を形成する高反応性非金属'
+                        },
+                        skill: 'toxic_field'
+                    },
+                    'noble_gas': {
+                        name: {
+                            'en': 'Noble Gases',
+                            'zh': '惰性气体',
+                            'ja': '希ガス'
+                        },
+                        color: '#9b59b6',
+                        description: {
+                            'en': 'Extremely unreactive elements with full valence shells',
+                            'zh': '具有完整价电子层的极不活泼元素',
+                            'ja': '完全な価電子殻を持つ極めて不活性な元素'
+                        },
+                        skill: 'noble_invincibility'
+                    },
+                    'lanthanide': {
+                        name: {
+                            'en': 'Lanthanides',
+                            'zh': '镧系元素',
+                            'ja': 'ランタノイド'
+                        },
+                        color: '#f39c12',
+                        description: {
+                            'en': 'Rare earth elements with similar properties',
+                            'zh': '具有相似性质的稀土元素',
+                            'ja': '類似した特性を持つ希土類元素'
+                        },
+                        skill: 'metallic_boost' // Example skill, can be different
+                    },
+                    'actinide': {
+                        name: {
+                            'en': 'Actinides',
+                            'zh': '锕系元素',
+                            'ja': 'アクチノイド'
+                        },
+                        color: '#f1c40f',
+                        description: {
+                            'en': 'Radioactive elements, many of which are synthetic',
+                            'zh': '放射性元素，其中许多是人工合成的',
+                            'ja': '放射性元素、多くは合成元素'
+                        },
+                        skill: 'corrosion_aura' // Example skill, can be different
+                    },
+                     'unknown': { // Added for safety
+                        name: { 'en': 'Unknown', 'zh': '未知', 'ja': '不明' },
+                        color: '#cccccc',
+                        description: { 'en': 'Unknown category', 'zh': '未知类别', 'ja': '不明なカテゴリー' },
+                        skill: null
+                    }
+                };
+            }
+
+            getElement(protonCount) {
+                return this.elements[protonCount] || { 
+                    symbol: '?', 
+                    name: '未知', 
+                    fullName: 'Unknown', 
+                    color: '#cccccc', 
+                    maxNeutrons: protonCount * 2,
+                    category: 'unknown',
+                    description: 'Unknown Element'
+                };
+            }
+
+            getElementBySymbol(symbol) {
+                for (const [protonCount, element] of Object.entries(this.elements)) {
+                    if (element.symbol === symbol) {
+                        return { ...element, protonCount: parseInt(protonCount) };
+                    }
+                }
+                return null;
+            }
+
+            getCategoryInfo(categoryId) {
+                return this.categories[categoryId] || this.categories['unknown'];
+            }
+
+            getElementCategory(protonCount) {
+                const element = this.getElement(protonCount);
+                return element ? element.category : 'unknown';
+            }
+
+            getElementSkill(protonCount) {
+                const category = this.getElementCategory(protonCount);
+                const categoryInfo = this.getCategoryInfo(category);
+                return categoryInfo.skill;
+            }
+
+            getLocalizedCategoryName(categoryId, language = 'en') {
+                const category = this.getCategoryInfo(categoryId);
+                return category.name[language] || category.name.en;
+            }
+
+            getLocalizedCategoryDescription(categoryId, language = 'en') {
+                const category = this.getCategoryInfo(categoryId);
+                return category.description[language] || category.description.en;
+            }
+
+            getElementColor(protonCount) {
+                return this.getElement(protonCount).color;
+            }
+
+            getCategoryColor(categoryId) {
+                return this.getCategoryInfo(categoryId).color;
+            }
+
+            isStableIsotope(protonCount, neutronCount) {
+                // Simplified stability check based on neutron-proton ratio
+                if (protonCount <= 0) return false; // Handle edge case
+                if (protonCount <= 20) {
+                    // Light elements prefer N ≈ Z
+                    return Math.abs(protonCount - neutronCount) <= 2; // Looser for game
+                } else if (protonCount <= 83) {
+                    // Medium elements prefer more neutrons
+                    const idealNeutronRatioMin = 1.0;
+                    const idealNeutronRatioMax = 1.5 + (protonCount - 20) * 0.005; // Slightly increasing ratio
+                    const actualRatio = neutronCount / protonCount;
+                    return actualRatio >= idealNeutronRatioMin && actualRatio <= idealNeutronRatioMax;
+                } else {
+                    // Heavy elements are generally unstable, but some exist
+                     const idealNeutronRatioMin = 1.2;
+                    const idealNeutronRatioMax = 1.6;
+                    const actualRatio = neutronCount / protonCount;
+                    return actualRatio >= idealNeutronRatioMin && actualRatio <= idealNeutronRatioMax && neutronCount <= this.getElement(protonCount).maxNeutrons ;
+                }
+            }
+
+            getElementMass(protonCount, neutronCount) {
+                // Approximate atomic mass (ignoring mass defect)
+                return protonCount + neutronCount;
+            }
+
+            getElementRadius(protonCount) {
+                // Base radius for visualization
+                return 10 + protonCount * 0.5;
+            }
+
+            getElementInfo(protonCount, neutronCount, language = 'en') {
+                const element = this.getElement(protonCount);
+                const category = this.getCategoryInfo(element.category);
+                const mass = this.getElementMass(protonCount, neutronCount);
+                const isStable = this.isStableIsotope(protonCount, neutronCount);
+                
+                return {
+                    symbol: element.symbol,
+                    name: element.name,
+                    fullName: element.fullName,
+                    protonCount: protonCount,
+                    neutronCount: neutronCount,
+                    electronCount: protonCount, // Assuming neutral atom
+                    mass: mass,
+                    category: element.category,
+                    categoryName: category.name[language] || category.name.en,
+                    color: element.color,
+                    isStable: isStable,
+                    description: element.description,
+                    skill: category.skill
+                };
+            }
+        }
+        const periodicTable = new PeriodicTableData(); // Instantiate
+
+        // --- element_skills_system.js ---
+        class ElementSkillsSystem {
+            constructor(gameState) {
+                this.gameState = gameState;
+                this.activeSkills = {}; // Changed from array to object for easier management
+                this.skillCooldowns = {};
+                //this.skillDurations = {}; // Duration is part of skill definition
+                this.skillUI = null; // Will be created by updateSkillBar in main game
+                this.elementCategories = periodicTable.categories; // Use categories from PeriodicTableData
+                this.skills = this.defineSkills(); // Uses skill IDs from periodicTable.categories
+                this.lastUpdate = Date.now(); // For cooldown calculations
+            }
+
+            defineSkills() {
+                // Define skills based on skill IDs from periodicTable.categories
+                // This structure matches the existing skill system in chemical_game_final.html
+                return {
+                    'corrosion_aura': { 
+                        name: "Corrosion Aura", // Default name, i18n will be handled by main game's i18n
+                        duration: 5, 
+                        cooldown: 15, 
+                        effect: (player) => { player.hasAura = true; log("Aura ON"); }, 
+                        removeEffect: (player) => { player.hasAura = false; log("Aura OFF"); }
+                    },
+                    'earth_shield': { 
+                        name: "Earth Shield", 
+                        duration: 8, 
+                        cooldown: 20, 
+                        effect: (player) => { player.isInvincible = true; log("Shield ON");}, 
+                        removeEffect: (player) => { player.isInvincible = false; log("Shield OFF");}
+                    },
+                    'metallic_boost': { 
+                        name: "Metallic Boost", 
+                        duration: 6, 
+                        cooldown: 12, 
+                        effect: (player) => { player.tempSpeedMultiplier = 1.8; log("Boost ON");}, // Increased multiplier
+                        removeEffect: (player) => { player.tempSpeedMultiplier = 1; log("Boost OFF");}
+                    },
+                    'decoy_creation': { // Placeholder - complex skill, needs more integration
+                        name: "Create Decoy", 
+                        duration: 0, // Instantaneous or managed differently
+                        cooldown: 25, 
+                        effect: (player) => { 
+                            log("Decoy skill activated - needs implementation for decoy object and AI targeting");
+                            // Example: spawn a temporary non-colliding visual element
+                            // This would require access to gameState and drawing functions
+                            showNotification("诱饵已放置!"); 
+                        }, 
+                        removeEffect: () => {}
+                    },
+                    'covalent_bond': { 
+                        name: "Covalent Bond", 
+                        duration: 0, // Instantaneous
+                        cooldown: 18, 
+                        effect: (player) => { 
+                            player.absorbNearbyParticles?.();  // Use optional chaining
+                            log("Covalent bond activated - absorb nearby");
+                        }, 
+                        removeEffect: () => {} 
+                    },
+                    'toxic_field': { // Placeholder - complex skill, needs AI interaction
+                        name: "Toxic Field", 
+                        duration: 8, 
+                        cooldown: 20, 
+                        effect: (player) => { 
+                            player.hasToxicField = true; // Add a flag
+                            log("Toxic field ON - AI slow down needs implementation");
+                             // Visuals can be added in player.draw
+                        }, 
+                        removeEffect: (player) => { 
+                            player.hasToxicField = false; 
+                            log("Toxic field OFF");
+                        }
+                    },
+                    'noble_invincibility': { 
+                        name: "Noble Invincibility", 
+                        duration: 5, 
+                        cooldown: 30, 
+                        effect: (player) => { player.isInvincible = true; log("Noble Invincibility ON");}, 
+                        removeEffect: (player) => { player.isInvincible = false; log("Noble Invincibility OFF");}
+                    }
+                    // Ensure all skill IDs from periodicTable.categories are defined here if they have effects
+                };
+            }
+
+            // This method will be called by the main game loop's updateSkills function
+            updateActiveSkillTimers() {
+                const now = Date.now();
+                let needsSkillBarUpdate = false;
+
+                for (const skillId in this.activeSkills) {
+                    const activeSkill = this.activeSkills[skillId];
+                    const skillData = this.skills[skillId];
+
+                    if (!skillData) {
+                        delete this.activeSkills[skillId];
+                        needsSkillBarUpdate = true;
+                        continue;
+                    }
+                    
+                    // Check duration
+                    if (activeSkill.endTime !== Infinity && activeSkill.endTime <= now) {
+                        skillData.removeEffect(this.gameState.player);
+                        // Don't delete yet, wait for cooldown
+                        activeSkill.endTime = 0; // Mark effect as ended
+                        log(`技能 ${skillData.name || skillId} 效果结束`);
+                        needsSkillBarUpdate = true;
+                    }
+
+                    // Check cooldown
+                    if (activeSkill.cooldownEnd <= now) {
+                        delete this.activeSkills[skillId];
+                        log(`技能 ${skillData.name || skillId} 冷却结束`);
+                        needsSkillBarUpdate = true;
+                    }
+                }
+                return needsSkillBarUpdate;
+            }
+            
+            // This method replaces the old activateSkill and is called from the main game
+            tryActivateSkill(skillId) {
+                if (!this.gameState.player) return;
+
+                const skillData = this.skills[skillId];
+                const playerProtonCount = this.gameState.player.elementNumber; // Assuming elementNumber is proton count
+                const playerElementCategory = periodicTable.getElementCategory(playerProtonCount);
+                const skillForCategory = periodicTable.getCategoryInfo(playerElementCategory).skill;
+
+
+                if (!skillData) {
+                    log(`尝试激活未知技能: ${skillId}`);
+                    return;
+                }
+                
+                if (skillId !== skillForCategory) {
+                    log(`玩家元素 (${playerElementCategory}) 没有技能 ${skillId}`);
+                    // showNotification("当前元素无此技能"); // Or handle silently
+                    return;
+                }
+
+                if (this.activeSkills[skillId] && this.activeSkills[skillId].cooldownEnd > Date.now()) {
+                    const remainingCooldown = Math.ceil((this.activeSkills[skillId].cooldownEnd - Date.now()) / 1000);
+                    showNotification(i18n("skillCooldown", { time: remainingCooldown }));
+                    log(`技能 ${skillData.name || skillId} 正在冷却中 (${remainingCooldown}s)`);
+                    return;
+                }
+                
+                // If skill was active and duration ended, but still on cooldown, don't reactivate effect
+                if (this.activeSkills[skillId] && this.activeSkills[skillId].endTime === 0 && this.activeSkills[skillId].cooldownEnd > Date.now()) {
+                     const remainingCooldown = Math.ceil((this.activeSkills[skillId].cooldownEnd - Date.now()) / 1000);
+                    showNotification(i18n("skillCooldown", { time: remainingCooldown }));
+                    log(`技能 ${skillData.name || skillId} 效果已结束，仍在冷却中 (${remainingCooldown}s)`);
+                    return;
+                }
+
+
+                log(`激活技能: ${skillData.name || skillId}`);
+                skillData.effect(this.gameState.player);
+                showNotification(`${i18n(skillId) || skillData.name || skillId} ${i18n("skillActivatedShort") || "activated!"}`);
+
+
+                this.activeSkills[skillId] = {
+                    endTime: skillData.duration > 0 ? Date.now() + skillData.duration * 1000 : Infinity, // Infinity for passive or instant
+                    cooldownEnd: Date.now() + skillData.cooldown * 1000,
+                    // removeEffect: skillData.removeEffect // removeEffect is part of skillData
+                };
+
+                // If duration is 0 (instant), call removeEffect immediately but keep cooldown
+                if (skillData.duration === 0 && skillData.removeEffect) {
+                    skillData.removeEffect(this.gameState.player);
+                    this.activeSkills[skillId].endTime = 0; // Mark effect as ended
+                }
+                
+                updateSkillBar(); // Trigger UI update in main game
+            }
+
+            // This method is called by the main game's updateSkillBar
+            getSkillState(skillId) {
+                const skillData = this.skills[skillId];
+                if (!skillData) return { status: "unavailable" };
+
+                const activeSkillInstance = this.activeSkills[skillId];
+                const now = Date.now();
+
+                if (activeSkillInstance) {
+                    if (activeSkillInstance.endTime > now && activeSkillInstance.endTime !== Infinity) {
+                        return { status: "active", skillData: skillData };
+                    }
+                    if (activeSkillInstance.cooldownEnd > now) {
+                        const remainingCooldown = (activeSkillInstance.cooldownEnd - now) / 1000;
+                        const cooldownPercent = ((skillData.cooldown * 1000 - (activeSkillInstance.cooldownEnd - now)) / (skillData.cooldown * 1000)) * 100;
+                        return { status: "cooldown", remaining: remainingCooldown, percent: cooldownPercent, skillData: skillData };
+                    }
+                }
+                return { status: "ready", skillData: skillData };
+            }
+            
+            // Called on player evolution or game start to reset/setup skills
+            resetPlayerSkills() {
+                if (!this.gameState.player) return;
+                // Clear existing active skills or apply new passive skills if any
+                for (const skillId in this.activeSkills) {
+                    const skillData = this.skills[skillId];
+                    if (skillData && this.activeSkills[skillId].endTime > 0) { // If effect was active
+                        skillData.removeEffect(this.gameState.player);
+                    }
+                }
+                this.activeSkills = {};
+                log("玩家技能已重置/初始化");
+                updateSkillBar();
+            }
+        }
+        let elementSkillsSystem; // Will be instantiated in init()
+
+        // Global error handling
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error("游戏错误:", message, "at", source, lineno, colno, error);
+            showError("游戏发生错误: " + message);
+            return true; // Prevent default browser error handling
+        };
+
+        // Debugging function
+        const debugPanel = document.getElementById("debugPanel");
+        function log(message) {
+            console.log(message);
+            if (debugPanel) {
+                debugPanel.innerHTML += message + "<br>";
+                debugPanel.scrollTop = debugPanel.scrollHeight;
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorMessage = document.getElementById("errorMessage");
+            if (errorMessage) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = "block";
+                setTimeout(() => {
+                    errorMessage.style.display = "none";
+                }, 5000);
+            }
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') { // Added type for styling if needed
+            const notification = document.getElementById("notification");
+            if (notification) {
+                notification.textContent = message;
+                notification.style.opacity = 1;
+                // Optional: Change color based on type
+                if (type === 'error') notification.style.backgroundColor = 'rgba(200, 0, 0, 0.7)';
+                else if (type === 'success') notification.style.backgroundColor = 'rgba(0, 150, 0, 0.7)';
+                else notification.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                
+                setTimeout(() => {
+                    notification.style.opacity = 0;
+                }, 3000); // MODIFICATION: Increased notification duration
+            }
+        }
+
+        // --- i18n.js --- 
+        const translations = {
+            en: {
+                gameTitle: "Chemical Element Agar.io",
+                loading: "Loading game...",
+                score: "Score: {score}",
+                evolutionProgress: "Evolution: {percent}% (Next: {next})",
+                startGame: "Start Game",
+                leaderboard: "Leaderboard",
+                instructions: "Instructions",
+                gameOver: "Game Over",
+                finalScore: "Final Score: {score}",
+                restart: "Restart",
+                mainMenu: "Main Menu",
+                backToMenu: "Back to Menu",
+                synthesisTitle: "Synthesis Panel",
+                swallowedProton: "+{points} points (Proton)",
+                swallowedNeutron: "+{points} points (Neutron)",
+                swallowedElectron: "+{points} points (Electron)",
+                swallowedAI: "+{points} points ({element})",
+                evolved: "Evolved to {symbol} ({name})!",
+                quizCorrect: "Correct! +{points} points!",
+                quizIncorrect: "Incorrect!",
+                skillReady: "Skill Ready!",
+                skillCooldown: "Skill Cooldown: {time}s",
+                skillActivatedShort: "Activated!",
+                // Skills from element_skills_system.js (ensure IDs match)
+                corrosion_aura: "Corrosion Aura",
+                earth_shield: "Earth Shield",
+                metallic_boost: "Metallic Boost",
+                decoy_creation: "Create Decoy",
+                covalent_bond: "Covalent Bond",
+                toxic_field: "Toxic Field",
+                noble_invincibility: "Noble Invincibility",
+                instructionsText: "Instructions:\n\n1. Use WASD or Arrow keys to move.\n2. Swallow electrons, protons, and neutrons to grow.\n3. Collect enough protons to evolve to the next element.\n4. Swallow smaller AI elements, avoid larger ones.\n5. Answer quiz questions from \"?\" AI for bonus points.\n6. Use Spacebar or click skill icons to activate element skills.",
+                maxEvolution: "MAX",
+                // MODIFICATION: Added i18n for Contribution Feature
+                questionContribution: "Contribute Questions",
+                contributionTitle: "Question Contribution",
+                contribFormQuestion: "Question:",
+                contribFormOpt1: "Option 1:",
+                contribFormOpt2: "Option 2:",
+                contribFormOpt3: "Option 3:",
+                contribFormOpt4: "Option 4:",
+                contribFormCorrect: "Correct Answer:",
+                contribFormOpt1Label: "Option 1",
+                contribFormOpt2Label: "Option 2",
+                contribFormOpt3Label: "Option 3",
+                contribFormOpt4Label: "Option 4",
+                submitContribution: "Submit Contribution",
+                contributionSuccess: "Question submitted! Thank you.",
+                contributionError: "Please fill all fields.",
+                enterNamePrompt: "Enter your name to save your score:",
+                defaultPlayerName: "Player",
+                anonymousPlayer: "Anonymous",
+                noHighScores: "No high scores yet."
+            },
+            zh: {
+                gameTitle: "化学版球球大作戰",
+                loading: "正在加载游戏...",
+                score: "分数: {score}",
+                evolutionProgress: "进化进度: {percent}% (下一个元素: {next})",
+                startGame: "开始游戏",
+                leaderboard: "排行榜",
+                instructions: "游戏说明",
+                gameOver: "游戏结束",
+                finalScore: "最终分数: {score}",
+                restart: "重新开始",
+                mainMenu: "主菜单",
+                backToMenu: "返回主菜单",
+                synthesisTitle: "合成面板",
+                swallowedProton: "+{points} 分 (质子)",
+                swallowedNeutron: "+{points} 分 (中子)",
+                swallowedElectron: "+{points} 分 (电子)",
+                swallowedAI: "+{points} 分 ({element})",
+                evolved: "进化到 {symbol} ({name})!",
+                quizCorrect: "回答正确! +{points} 分!",
+                quizIncorrect: "回答错误!",
+                skillReady: "技能准备就绪!",
+                skillCooldown: "技能冷却: {time}秒",
+                skillActivatedShort: "已激活!",
+                corrosion_aura: "腐蚀光环",
+                earth_shield: "地盾",
+                metallic_boost: "金属加速",
+                decoy_creation: "创建诱饵",
+                covalent_bond: "共价键",
+                toxic_field: "毒性场",
+                noble_invincibility: "惰性无敌",
+                instructionsText: "游戏说明:\n\n1. 使用WASD或方向键移动\n2. 吞噬电子、质子和中子来成长\n3. 收集足够的质子可以进化到下一个元素\n4. 吞噬比你小的AI元素，躲避比你大的\n5. 回答带有?标记的AI提出的问题以获得额外分数\n6. 使用空格键或点击技能图标激活元素技能",
+                maxEvolution: "已达最高",
+                // MODIFICATION: Added i18n for Contribution Feature
+                questionContribution: "贡献题目",
+                contributionTitle: "题目贡献",
+                contribFormQuestion: "问题:",
+                contribFormOpt1: "选项 1:",
+                contribFormOpt2: "选项 2:",
+                contribFormOpt3: "选项 3:",
+                contribFormOpt4: "选项 4:",
+                contribFormCorrect: "正确答案:",
+                contribFormOpt1Label: "选项 1",
+                contribFormOpt2Label: "选项 2",
+                contribFormOpt3Label: "选项 3",
+                contribFormOpt4Label: "选项 4",
+                submitContribution: "提交贡献",
+                contributionSuccess: "题目已提交！感谢您的贡献。",
+                contributionError: "请填写所有字段。",
+                enterNamePrompt: "请输入您的名字以保存分数:",
+                defaultPlayerName: "玩家",
+                anonymousPlayer: "匿名玩家",
+                noHighScores: "暂无排行记录。"
+            },
+            ja: {
+                gameTitle: "化学元素アガリオ",
+                loading: "ゲームをロード中...",
+                score: "スコア: {score}",
+                evolutionProgress: "進化: {percent}% (次: {next})",
+                startGame: "ゲーム開始",
+                leaderboard: "ランキング",
+                instructions: "遊び方",
+                gameOver: "ゲームオーバー",
+                finalScore: "最終スコア: {score}",
+                restart: "リスタート",
+                mainMenu: "メインメニュー",
+                backToMenu: "メインメニューに戻る",
+                synthesisTitle: "合成パネル",
+                swallowedProton: "+{points} 点 (陽子)",
+                swallowedNeutron: "+{points} 点 (中性子)",
+                swallowedElectron: "+{points} 点 (電子)",
+                swallowedAI: "+{points} 点 ({element})",
+                evolved: "{symbol} ({name})に進化した！",
+                quizCorrect: "正解！ +{points} 点！",
+                quizIncorrect: "不正解！",
+                skillReady: "スキル準備完了！",
+                skillCooldown: "スキルクールダウン: {time}秒",
+                skillActivatedShort: "発動！",
+                corrosion_aura: "腐食オーラ",
+                earth_shield: "アースシールド",
+                metallic_boost: "メタルブースト",
+                decoy_creation: "デコイ作成",
+                covalent_bond: "共有結合",
+                toxic_field: "毒性フィールド",
+                noble_invincibility: "不活性無敵",
+                instructionsText: "遊び方:\n\n1. WASDキーまたは矢印キーで移動します。\n2. 電子、陽子、中性子を飲み込んで成長します。\n3. 十分な陽子を集めると次の元素に進化します。\n4. 自分より小さいAI元素を飲み込み、大きいものを避けます。\n5. 「?」マークのAIからのクイズに答えてボーナスポイントを獲得します。\n6. スペースキーまたはスキルアイコンをクリックして元素スキルを発動します。",
+                maxEvolution: "最大",
+                // MODIFICATION: Added i18n for Contribution Feature
+                questionContribution: "問題提供",
+                contributionTitle: "問題提供フォーム",
+                contribFormQuestion: "質問:",
+                contribFormOpt1: "選択肢 1:",
+                contribFormOpt2: "選択肢 2:",
+                contribFormOpt3: "選択肢 3:",
+                contribFormOpt4: "選択肢 4:",
+                contribFormCorrect: "正解:",
+                contribFormOpt1Label: "選択肢 1",
+                contribFormOpt2Label: "選択肢 2",
+                contribFormOpt3Label: "選択肢 3",
+                contribFormOpt4Label: "選択肢 4",
+                submitContribution: "提供する",
+                contributionSuccess: "問題が送信されました。ありがとうございます！",
+                contributionError: "すべてのフィールドに入力してください。",
+                enterNamePrompt: "スコアを保存するために名前を入力してください:",
+                defaultPlayerName: "プレイヤー",
+                anonymousPlayer: "匿名",
+                noHighScores: "まだハイスコアはありません。"
+            }
+        };
+        let currentLang = "zh";
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.documentElement.lang = lang;
+            updateUIText();
+            document.querySelectorAll("#languageSwitcher button").forEach(btn => {
+                btn.classList.toggle("active", btn.dataset.lang === lang);
+            });
+            log(`语言切换到: ${lang}`);
+            updateSkillBar(); 
+        }
+
+        function i18n(key, replacements = {}) {
+            let translation = translations[currentLang]?.[key] || translations["en"]?.[key] || key;
+            if (typeof translation === 'string') {
+                for (const placeholder in replacements) {
+                    translation = translation.replace(`{${placeholder}}`, replacements[placeholder]);
+                }
+            } else { 
+                translation = key;
+            }
+            return translation;
+        }
+
+        function updateUIText() {
+            document.querySelectorAll("[data-i18n]").forEach(element => {
+                const key = element.dataset.i18n;
+                // Exclude dynamic score/progress elements from direct textContent override here
+                const excludedKeys = ["score", "evolutionProgress", "finalScore"];
+                if (!excludedKeys.includes(key)) {
+                     // For labels associated with inputs, set their text content
+                    if (element.tagName === 'LABEL' && element.htmlFor) {
+                        element.textContent = i18n(key);
+                    } 
+                    // For buttons and other generic elements
+                    else if (element.tagName === 'BUTTON' || element.tagName === 'H1' || element.id === 'loadingText' || (element.tagName === 'TEXTAREA' || element.tagName === 'INPUT') && element.placeholder) {
+                         if (element.placeholder !== undefined && (key === 'contribFormQuestion' || key.startsWith('contribFormOpt'))) { // Set placeholder for inputs/textarea if key matches
+                           // element.placeholder = i18n(key); // Not doing this for now, using separate labels.
+                        } else {
+                            element.textContent = i18n(key);
+                        }
+                    } else if (element.id && (element.id === 'contribQuestionLabel' || element.id.startsWith('contribOptLabel'))) {
+                        //This was for specific label handling, now generic label above handles it
+                    } else if (!element.htmlFor) { // General case for other elements
+                         element.textContent = i18n(key);
+                    }
+                }
+            });
+            // Update dynamic elements separately
+            updateScore();
+            updateElementInfo();
+            updateEvolutionProgress();
+        }
+
+        // --- elements_data.js (Simplified for this file, full data in PeriodicTableData class) ---
+        const elementsData = { 
+            1: { symbol: "H", name: "氢", fullName: "Hydrogen", color: "#E0F7FA", skill: "metallic_boost"}, 
+            2: { symbol: "He", name: "氦", fullName: "Helium", color: "#D1C4E9", skill: "noble_invincibility" },
+            3: { symbol: "Li", name: "锂", fullName: "Lithium", color: "#FFCDD2", skill: "corrosion_aura" },
+            6: { symbol: "C", name: "碳", fullName: "Carbon", color: "#BDBDBD", skill: "covalent_bond" },
+        };
+        const MAX_ELEMENT_NUMBER = 118; 
+
+        // --- Quiz Data --- 
+        let quizQuestions = [ // Made 'let' so we can potentially add to it later
+            { q: "水分子的化学式是什么？", o: ["H2O", "CO2", "O2", "H2"], a: 0, lang: "zh" },
+            { q: "哪个元素是惰性气体？", o: ["氧 (O)", "氦 (He)", "氮 (N)", "碳 (C)"], a: 1, lang: "zh" },
+            { q: "铁的元素符号是什么？", o: ["I", "Ir", "Fe", "F"], a: 2, lang: "zh" },
+            { q: "What is the chemical formula for water?", o: ["H2O", "CO2", "O2", "H2"], a: 0, lang: "en" },
+            { q: "Which element is a noble gas?", o: ["Oxygen (O)", "Helium (He)", "Nitrogen (N)", "Carbon (C)"], a: 1, lang: "en" },
+            { q: "What is the symbol for Iron?", o: ["I", "Ir", "Fe", "F"], a: 2, lang: "en" },
+            { q: "水の化学式は何ですか？", o: ["H2O", "CO2", "O2", "H2"], a: 0, lang: "ja" },
+            { q: "貴ガスはどの元素ですか？", o: ["酸素 (O)", "ヘリウム (He)", "窒素 (N)", "炭素 (C)"], a: 1, lang: "ja" },
+            { q: "鉄の元素記号は何ですか？", o: ["I", "Ir", "Fe", "F"], a: 2, lang: "ja" }
+        ];
+
+        // --- Synthesis Data --- 
+        const synthesisRecipes = { 
+            "H2O": { requires: { H: 2, O: 1 }, points: 50 },
+            "CO2": { requires: { C: 1, O: 2 }, points: 75 }
+        };
+
+        // Game State
+        let gameState = {
+            player: null,
+            particles: [], 
+            aiElements: [], 
+            score: 0,
+            gameLoopId: null,
+            keysPressed: {},
+            mousePos: { x: 0, y: 0 }, 
+            worldSize: { width: 3000, height: 3000 }, 
+            camera: { x: 0, y: 0 },
+            isGameOver: false,
+            currentQuiz: null,
+            synthesisInventory: {},
+            highScores: [],
+            language: currentLang,
+            debugMode: false 
+        };
+        
+        function getElementData(protonCount) {
+            return periodicTable.getElement(protonCount);
+        }
+
+
+        // DOM Elements
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const loadingScreen = document.getElementById("loadingScreen");
+        const loadingProgress = document.getElementById("loadingProgress");
+        const loadingText = document.getElementById("loadingText");
+        const mainMenu = document.getElementById("mainMenu");
+        const gameOverScreen = document.getElementById("gameOverScreen");
+        const leaderboardScreen = document.getElementById("leaderboardScreen");
+        const scoreDisplay = document.getElementById("scoreDisplay");
+        const elementInfo = document.getElementById("elementInfo");
+        const evolutionProgressElement = document.getElementById("evolutionProgress"); 
+        const evolutionText = document.getElementById("evolutionText");
+        const finalScoreText = document.getElementById("finalScore"); // Renamed to avoid conflict with global finalScore i18n key
+        const startButton = document.getElementById("startButton");
+        const leaderboardButton = document.getElementById("leaderboardButton");
+        const instructionsButton = document.getElementById("instructionsButton");
+        const restartButton = document.getElementById("restartButton");
+        const menuButton = document.getElementById("menuButton");
+        const backToMenuButton = document.getElementById("backToMenuButton");
+        const leaderboardList = document.getElementById("leaderboardList");
+        const languageSwitcher = document.getElementById("languageSwitcher");
+        const synthesisPanel = document.getElementById("synthesisPanel"); 
+        const synthesisList = document.getElementById("synthesisList"); 
+        const skillBar = document.getElementById("skillBar");
+        const quizContainer = document.getElementById("quizContainer");
+        const quizQuestion = document.getElementById("quizQuestion");
+        const quizOptions = document.getElementById("quizOptions");
+        // MODIFICATION: DOM Elements for Contribution Screen
+        const contributionScreen = document.getElementById("contributionScreen");
+        const questionContributionButton = document.getElementById("questionContributionButton");
+        const submitContributionButton = document.getElementById("submitContributionButton");
+        const backToMenuFromContribButton = document.getElementById("backToMenuFromContribButton");
+        const contribQuestionText = document.getElementById("contribQuestion");
+        const contribOpt1Text = document.getElementById("contribOpt1");
+        const contribOpt2Text = document.getElementById("contribOpt2");
+        const contribOpt3Text = document.getElementById("contribOpt3");
+        const contribOpt4Text = document.getElementById("contribOpt4");
+
+
+        // Particle Types
+        const PARTICLE_TYPES = {
+            ELECTRON: { mass: 0.1, color: "#aaaaff", radius: 5, points: 1 },
+            PROTON: { mass: 1, color: "#ffaaaa", radius: 8, points: 5 },
+            NEUTRON: { mass: 1, color: "#dddddd", radius: 8, points: 5 }
+        };
+
+        // --- Utility Functions ---
+        function distance(x1, y1, x2, y2) {
+            return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2);
+        }
+
+        function random(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById("gameContainer");
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            log(`画布大小调整为 ${canvas.width}x${canvas.height}`);
+        }
+
+        // --- Player Class ---
+        class Player {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 20;
+                this.elementNumber = 1; 
+                this.protons = 1;
+                this.neutrons = 0;
+                this.electrons = 1; 
+                
+                this.vx = 0; 
+                this.vy = 0; 
+                this.accelerationFactor = 0.15; 
+                this.dragFactor = 0.92;      
+                this.targetBaseSpeed = 2.8; 
+
+                this.tempSpeedMultiplier = 1;
+                this.isInvincible = false;
+                this.hasAura = false;
+                this.auraRadius = 0;
+                this.hasToxicField = false; 
+                this.inventory = {}; 
+                this.updateElementProperties();
+            }
+            
+            updateElementProperties() {
+                const elementData = periodicTable.getElement(this.elementNumber);
+                this.color = elementData.color;
+                this.updateMassAndRadius();
+                const maxN = elementData.maxNeutrons !== undefined ? elementData.maxNeutrons : this.protons * 2; 
+                if (this.neutrons > maxN) {
+                    this.neutrons = maxN;
+                }
+                 if (this.neutrons < 0) this.neutrons = 0;
+
+
+                this.updateMassAndRadius();
+            }
+
+
+            get mass() {
+                return this.protons + this.neutrons;
+            }
+
+            get speed() { 
+                return (this.targetBaseSpeed * this.tempSpeedMultiplier) / (1 + Math.log1p(this.mass / 50));
+            }
+
+            updateMassAndRadius() {
+                this.radius = 15 + Math.pow(this.mass, 0.45) * 2.5;
+            }
+
+            draw() { 
+                const screenX = this.x - gameState.camera.x;
+                const screenY = this.y - gameState.camera.y;
+                const currentElementData = periodicTable.getElement(this.elementNumber);
+
+                if (this.hasAura) {
+                    this.auraRadius = this.radius + 30 + Math.sin(Date.now() / 200) * 5; 
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, this.auraRadius, 0, Math.PI * 2);
+                    const auraGradient = ctx.createRadialGradient(screenX, screenY, this.radius, screenX, screenY, this.auraRadius);
+                    auraGradient.addColorStop(0, "rgba(231, 76, 60, 0.05)");
+                    auraGradient.addColorStop(1, "rgba(231, 76, 60, 0.3)");
+                    ctx.fillStyle = auraGradient;
+                    ctx.fill();
+                }
+                
+                if (this.hasToxicField) {
+                    const fieldRadius = this.radius * 2.5 + Math.sin(Date.now()/250) * 5;
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, fieldRadius, 0, Math.PI * 2);
+                    const toxicGradient = ctx.createRadialGradient(screenX, screenY, this.radius, screenX, screenY, fieldRadius);
+                    toxicGradient.addColorStop(0, "rgba(39, 174, 96, 0.05)");
+                    toxicGradient.addColorStop(1, "rgba(39, 174, 96, 0.25)");
+                    ctx.fillStyle = toxicGradient;
+                    ctx.fill();
+                }
+
+
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, this.radius, 0, Math.PI * 2);
+                const gradient = ctx.createRadialGradient(screenX, screenY, this.radius * 0.5, screenX, screenY, this.radius);
+                gradient.addColorStop(0, lightenColor(this.color, 20));
+                gradient.addColorStop(1, this.color);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                if (this.isInvincible) {
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, this.radius + 5 + Math.sin(Date.now()/150)*2, 0, Math.PI * 2);
+                    ctx.strokeStyle = "rgba(52, 152, 219, 0.9)";
+                    ctx.lineWidth = 4 + Math.sin(Date.now()/150);
+                    ctx.stroke();
+                     ctx.shadowColor = "rgba(52, 152, 219, 1)";
+                    ctx.shadowBlur = 15;
+                    ctx.stroke(); 
+                    ctx.shadowColor = "transparent"; 
+                    ctx.shadowBlur = 0;
+                }
+
+                ctx.strokeStyle = "#FFFFFF"; 
+                ctx.lineWidth = Math.max(1, this.radius * 0.05); 
+                ctx.stroke();
+
+                const fontSize = Math.max(12, Math.min(this.radius * 0.7, 48)); 
+                ctx.fillStyle = "white";
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.shadowColor = "black";
+                ctx.shadowBlur = 5;
+                ctx.fillText(currentElementData.symbol, screenX, screenY);
+                ctx.shadowColor = "transparent"; 
+                ctx.shadowBlur = 0;
+            }
+            
+            lightenColor(color, percent) {
+                let r, g, b;
+                if (color.startsWith("#")) {
+                    const num = parseInt(color.slice(1), 16);
+                    r = (num >> 16);
+                    g = ((num >> 8) & 0x00FF);
+                    b = (num & 0x0000FF);
+                } else if (color.startsWith("rgb")) {
+                    const parts = color.match(/[\d.]+/g);
+                    [r,g,b] = parts.map(Number);
+                } else {
+                    return color; 
+                }
+
+                r = Math.min(255, r + (255 * (percent / 100)));
+                g = Math.min(255, g + (255 * (percent / 100)));
+                b = Math.min(255, b + (255 * (percent / 100)));
+                return `rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
+            }
+
+
+            move() {
+                let moveX = 0;
+                let moveY = 0;
+
+                if (gameState.keysPressed["w"] || gameState.keysPressed["ArrowUp"]) moveY -= 1;
+                if (gameState.keysPressed["s"] || gameState.keysPressed["ArrowDown"]) moveY += 1;
+                if (gameState.keysPressed["a"] || gameState.keysPressed["ArrowLeft"]) moveX -= 1;
+                if (gameState.keysPressed["d"] || gameState.keysPressed["ArrowRight"]) moveX += 1;
+
+                const currentMaxSpeed = this.speed; 
+
+                if (moveX !== 0 || moveY !== 0) {
+                    const magnitude = Math.sqrt(moveX * moveX + moveY * moveY);
+                    const normalizedDx = moveX / magnitude;
+                    const normalizedDy = moveY / magnitude;
+
+                    this.vx += normalizedDx * this.accelerationFactor;
+                    this.vy += normalizedDy * this.accelerationFactor;
+
+                } else {
+                    this.vx *= this.dragFactor;
+                    this.vy *= this.dragFactor;
+                }
+
+                const currentSpeedMagnitude = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                if (currentSpeedMagnitude > currentMaxSpeed) {
+                    const scale = currentMaxSpeed / currentSpeedMagnitude;
+                    this.vx *= scale;
+                    this.vy *= scale;
+                }
+                
+                if (Math.abs(this.vx) < 0.01) this.vx = 0;
+                if (Math.abs(this.vy) < 0.01) this.vy = 0;
+
+
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+
+            swallowParticle(particle) {
+                let notificationKey = "";
+                if (particle.type === PARTICLE_TYPES.PROTON) {
+                    this.protons++;
+                    notificationKey = "swallowedProton";
+                } else if (particle.type === PARTICLE_TYPES.NEUTRON) {
+                    const maxNeutrons = periodicTable.getElement(this.elementNumber).maxNeutrons;
+                    if (this.neutrons < maxNeutrons) {
+                        this.neutrons++;
+                        notificationKey = "swallowedNeutron";
+                    } else { 
+                         return false; 
+                    }
+                } else if (particle.type === PARTICLE_TYPES.ELECTRON) {
+                    this.electrons++; 
+                    notificationKey = "swallowedElectron";
+                }
+                gameState.score += particle.type.points;
+                if (notificationKey) showNotification(i18n(notificationKey, { points: particle.type.points }));
+                
+                this.updateElementProperties(); 
+                this.checkEvolution();
+                updateScore();
+                updateElementInfo();
+                updateEvolutionProgress();
+                return true; 
+            }
+            
+            swallowAI(ai) { 
+                const aiElementData = periodicTable.getElement(ai.elementNumber);
+                gameState.score += Math.floor(ai.mass * 1.5); 
+                showNotification(i18n("swallowedAI", { points: Math.floor(ai.mass * 1.5), element: aiElementData.symbol }));
+                
+                this.protons += ai.protons;
+                this.neutrons += ai.neutrons;
+                
+                addToSynthesisInventory(aiElementData.symbol, 1); 
+                
+                this.updateElementProperties();
+                this.checkEvolution(); 
+                updateScore();
+                updateElementInfo();
+                updateEvolutionProgress();
+            }
+
+            checkEvolution() {
+                const currentMaxProtonsForElement = this.elementNumber;
+                if (this.protons > currentMaxProtonsForElement && this.elementNumber < MAX_ELEMENT_NUMBER) {
+                    this.elementNumber = this.protons; 
+                    if (this.elementNumber > MAX_ELEMENT_NUMBER) this.elementNumber = MAX_ELEMENT_NUMBER;
+
+                    this.updateElementProperties(); 
+                    const newElementData = periodicTable.getElement(this.elementNumber);
+                    showNotification(i18n("evolved", { symbol: newElementData.symbol, name: i18n(newElementData.symbol) || newElementData.name }));
+                    log(`进化到 ${newElementData.symbol} (${newElementData.fullName})`);
+                    
+                    updateElementInfo(); 
+                    elementSkillsSystem.resetPlayerSkills(); 
+                    updateSkillBar(); 
+                } else if (this.protons < this.elementNumber && this.elementNumber > 1) {
+                    this.elementNumber = this.protons;
+                    this.updateElementProperties();
+                    const newElementData = periodicTable.getElement(this.elementNumber);
+                    showNotification(`De-evolved to ${newElementData.symbol} (${newElementData.name})!`);
+                    log(`De-evolved to ${newElementData.symbol}`);
+                    updateElementInfo(); 
+                    elementSkillsSystem.resetPlayerSkills();
+                    updateSkillBar();
+                }
+            }
+
+
+            getEvolutionProgress() {
+                if (this.elementNumber >= MAX_ELEMENT_NUMBER) {
+                    return { percent: 100, next: i18n("maxEvolution") };
+                }
+                const protonsNeededForNextElement = this.elementNumber + 1;
+                let progress = 0;
+                if (protonsNeededForNextElement > this.elementNumber) { 
+                    progress = (this.protons - this.elementNumber) / (protonsNeededForNextElement - this.elementNumber) * 100;
+                }
+
+                return {
+                    percent: Math.min(100, Math.max(0, progress)),
+                    next: periodicTable.getElement(this.elementNumber + 1).symbol
+                };
+            }
+            
+            absorbNearbyParticles() {
+                const absorbRadius = this.radius * 2.5; 
+                let absorbedCount = 0;
+                for (let i = gameState.particles.length - 1; i >= 0; i--) {
+                    const p = gameState.particles[i];
+                    if (distance(this.x, this.y, p.x, p.y) < absorbRadius + p.radius) {
+                        if(this.swallowParticle(p)){ 
+                           gameState.particles.splice(i, 1);
+                           absorbedCount++;
+                        }
+                    }
+                }
+                if (absorbedCount > 0) {
+                    showNotification(i18n("covalent_bond") + ` ${i18n("skillActivatedShort")} Absorbed ${absorbedCount} particles!`);
+                } else {
+                    showNotification(i18n("covalent_bond") + ` ${i18n("skillActivatedShort")} No particles nearby.`);
+                }
+            }
+        }
+
+        // --- Particle Class ---
+        class Particle { 
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.radius = type.radius;
+                this.color = type.color;
+                this.mass = type.mass; 
+                this.points = type.points; 
+                
+                const angle = random(0, Math.PI * 2);
+                const speed = random(0.2, 0.8); 
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.life = random(1500, 3000); 
+            }
+
+            draw() {
+                const screenX = this.x - gameState.camera.x;
+                const screenY = this.y - gameState.camera.y;
+
+                if (screenX + this.radius < 0 || screenX - this.radius > canvas.width ||
+                    screenY + this.radius < 0 || screenY - this.radius > canvas.height) {
+                    return;
+                }
+
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, this.radius, 0, Math.PI * 2);
+                
+                const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, this.radius);
+                gradient.addColorStop(0, lightenColor(this.color, 30)); 
+                gradient.addColorStop(0.7, this.color);
+                gradient.addColorStop(1, darkenColor(this.color, 30)); 
+                ctx.fillStyle = gradient;
+                
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 5;
+                ctx.fill();
+                ctx.shadowBlur = 0; 
+            }
+            
+            move() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+
+                if (Math.random() < 0.02) { 
+                    const angleOffset = random(-0.5, 0.5); 
+                    const currentSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                    const currentAngle = Math.atan2(this.vy, this.vx);
+                    this.vx = Math.cos(currentAngle + angleOffset) * currentSpeed;
+                    this.vy = Math.sin(currentAngle + angleOffset) * currentSpeed;
+                }
+
+                if (this.life <= 0) {
+                    return false; 
+                }
+                return true; 
+            }
+        }
+        
+        function lightenColor(color, percent) {
+            let r, g, b;
+            if (color.startsWith("#")) {
+                const num = parseInt(color.slice(1), 16);
+                r = (num >> 16);
+                g = ((num >> 8) & 0x00FF);
+                b = (num & 0x0000FF);
+            } else if (color.startsWith("rgb")) { 
+                const parts = color.match(/[\d.]+/g);
+                if(parts && parts.length >=3) [r,g,b] = parts.map(Number); else return color;
+            } else return color;
+
+
+            r = Math.min(255, r + (255 * (percent / 100)));
+            g = Math.min(255, g + (255 * (percent / 100)));
+            b = Math.min(255, b + (255 * (percent / 100)));
+            return `rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
+        }
+
+        function darkenColor(color, percent) {
+             let r, g, b;
+            if (color.startsWith("#")) {
+                const num = parseInt(color.slice(1), 16);
+                r = (num >> 16);
+                g = ((num >> 8) & 0x00FF);
+                b = (num & 0x0000FF);
+            } else if (color.startsWith("rgb")) { 
+                 const parts = color.match(/[\d.]+/g);
+                if(parts && parts.length >=3) [r,g,b] = parts.map(Number); else return color;
+            } else return color;
+
+            r = Math.max(0, r - (r * (percent / 100)));
+            g = Math.max(0, g - (g * (percent / 100)));
+            b = Math.max(0, b - (b * (percent / 100)));
+            return `rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
+        }
+
+
+        // --- AI Element Class (Original from adjusted_game.html) ---
+        class AIElement {
+            constructor(x, y, elementNumber, isQuiz = false) {
+                this.x = x;
+                this.y = y;
+                this.elementNumber = Math.max(1, Math.min(elementNumber, MAX_ELEMENT_NUMBER)); 
+                const elementData = periodicTable.getElement(this.elementNumber);
+                this.protons = this.elementNumber;
+                
+                // MODIFICATION: Refined neutron generation for more realistic mass
+                let minNeutronsIdeal = this.protons * (this.protons < 20 ? 0.85 : 0.95); 
+                if (this.protons === 1) minNeutronsIdeal = 0; // Hydrogen can have 0, 1, or 2 neutrons (maxNeutrons: 2)
+                
+                let maxNeutronsIdeal = this.protons * (this.protons < 30 ? 1.25 : 1.55); 
+                if (this.protons === 1) maxNeutronsIdeal = 2; // Tritium for Hydrogen
+
+                const actualMaxNeutrons = elementData.maxNeutrons !== undefined ? elementData.maxNeutrons : this.protons * 2.5; 
+
+                this.neutrons = Math.floor(random(
+                    Math.max(0, minNeutronsIdeal), 
+                    Math.min(maxNeutronsIdeal, actualMaxNeutrons) 
+                ));
+                if (this.neutrons < 0) this.neutrons = 0;
+                if (this.protons === 1 && this.neutrons > 2) this.neutrons = 2; // Hard cap for Hydrogen isotopes in game
+
+                // END MODIFICATION
+                
+                this.electrons = this.protons; 
+                this.color = elementData.color;
+                this.symbol = elementData.symbol;
+                this.isQuiz = isQuiz;
+                
+                this.target = null; 
+                this.state = "wander"; 
+                this.stateTimer = random(2, 5); 
+                this.baseSpeed = random(0.8, 1.8);
+                this.updateMassAndRadius();
+            }
+
+            get mass() {
+                return this.protons + this.neutrons;
+            }
+            
+            get speed() {
+                return this.baseSpeed / (1 + Math.log1p(this.mass / 75));
+            }
+
+            updateMassAndRadius() {
+                this.radius = 12 + Math.pow(this.mass, 0.43) * 2.2;
+            }
+
+            draw() { 
+                const screenX = this.x - gameState.camera.x;
+                const screenY = this.y - gameState.camera.y;
+
+                if (screenX + this.radius < -50 || screenX - this.radius > canvas.width + 50 ||
+                    screenY + this.radius < -50 || screenY - this.radius > canvas.height + 50) {
+                    return; 
+                }
+
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, this.radius, 0, Math.PI * 2);
+                
+                const gradient = ctx.createRadialGradient(screenX, screenY, this.radius * 0.4, screenX, screenY, this.radius);
+                gradient.addColorStop(0, lightenColor(this.color, 15));
+                gradient.addColorStop(1, this.color);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                ctx.strokeStyle = this.isQuiz ? "#FFEB3B" : (this.state === "flee_player" ? "#FFA500" : "#e74c3c");
+                ctx.lineWidth = Math.max(1, this.radius * 0.04);
+                ctx.stroke();
+
+                const fontSize = Math.max(10, Math.min(this.radius * 0.6, 30));
+                ctx.fillStyle = "white";
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.shadowColor = "black";
+                ctx.shadowBlur = 3;
+                ctx.fillText(this.isQuiz ? "?" : this.symbol, screenX, screenY);
+                ctx.shadowColor = "transparent";
+                ctx.shadowBlur = 0;
+            }
+
+            updateState() { 
+                this.stateTimer -= 1 / 60; 
+                const player = gameState.player;
+                if (!player) { this.state = "wander"; return; } 
+
+                const distToPlayer = distance(this.x, this.y, player.x, player.y);
+                const detectionRange = canvas.width * 0.8; 
+
+                if (this.stateTimer <= 0) {
+                    this.stateTimer = random(1.5, 4); 
+
+                    if (distToPlayer < detectionRange) {
+                        if (player.mass > this.mass * 1.2 && !player.isInvincible) { 
+                            this.state = "flee_player";
+                            this.target = player;
+                        } else if (this.mass > player.mass * 1.2 && !this.isQuiz && !player.isInvincible) { 
+                            this.state = "chase_player";
+                            this.target = player;
+                        } else { 
+                            if (this.isQuiz && distToPlayer < detectionRange / 2 && !gameState.currentQuiz) {
+                                this.state = "approach_player_for_quiz";
+                                this.target = player;
+                            } else {
+                                this.state = "wander"; 
+                                this.target = null;
+                            }
+                        }
+                    } else { 
+                        const closestParticle = this.findClosestParticle(detectionRange / 1.2); 
+                        if (closestParticle && this.mass < 100) { 
+                            this.state = "chase_particle";
+                            this.target = closestParticle;
+                        } else {
+                            this.state = "wander";
+                            this.target = null;
+                        }
+                    }
+                }
+                if (player.hasToxicField && distToPlayer < player.radius * 2.5) {
+                    this.currentSpeedModifier = 0.5; 
+                } else {
+                    this.currentSpeedModifier = 1.0; 
+                }
+
+                if (player.hasAura && distToPlayer < player.auraRadius && this.state !== "chase_player") {
+                    this.mass -= 0.05; 
+                    if (this.mass <=1) { /* Mark for removal or handle defeat */ }
+                    this.updateMassAndRadius();
+                    if (this.state !== "flee_player") { 
+                         this.state = "flee_player"; 
+                         this.target = player;
+                         this.stateTimer = random(1,2); 
+                    }
+                }
+            }
+            
+            findClosestParticle(range) { 
+                let closest = null;
+                let minDist = range;
+                gameState.particles.forEach(p => {
+                    if (p.type === PARTICLE_TYPES.PROTON || p.type === PARTICLE_TYPES.NEUTRON) {
+                        const d = distance(this.x, this.y, p.x, p.y);
+                        if (d < minDist) {
+                            minDist = d;
+                            closest = p;
+                        }
+                    }
+                });
+                return closest;
+            }
+
+
+            move() { 
+                this.updateState();
+                let targetX, targetY;
+                let effectiveSpeed = this.speed * (this.currentSpeedModifier || 1.0);
+
+
+                switch (this.state) {
+                    case "chase_player":
+                    case "approach_player_for_quiz":
+                        if (this.target) {
+                            targetX = this.target.x;
+                            targetY = this.target.y;
+                        }
+                        break;
+                    case "flee_player":
+                        if (this.target) {
+                            const angleToTarget = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+                            targetX = this.x - Math.cos(angleToTarget) * 200; 
+                            targetY = this.y - Math.sin(angleToTarget) * 200;
+                            effectiveSpeed *= 1.1; 
+                        }
+                        break;
+                    case "chase_particle":
+                         if (this.target && gameState.particles.includes(this.target)) { 
+                            targetX = this.target.x;
+                            targetY = this.target.y;
+                        } else { 
+                            this.state = "wander";
+                            this.target = null;
+                            this.stateTimer = 0; 
+                        }
+                        break;
+                    case "wander":
+                    default:
+                        if (!this.wanderTarget || distance(this.x, this.y, this.wanderTarget.x, this.wanderTarget.y) < this.radius * 2 || this.stateTimer < 0.5) { 
+                            const wanderDist = random(200, 600);
+                            this.wanderTarget = {
+                                x: this.x + random(-wanderDist, wanderDist),
+                                y: this.y + random(-wanderDist, wanderDist)
+                            };
+                        }
+                        targetX = this.wanderTarget.x;
+                        targetY = this.wanderTarget.y;
+                        break;
+                }
+
+                if (targetX !== undefined && targetY !== undefined) {
+                    const angle = Math.atan2(targetY - this.y, targetX - this.x);
+                    this.x += Math.cos(angle) * effectiveSpeed;
+                    this.y += Math.sin(angle) * effectiveSpeed;
+                }
+            }
+            
+            swallowParticle(particle) { 
+                if (particle.type === PARTICLE_TYPES.PROTON) {
+                    this.protons++;
+                } else if (particle.type === PARTICLE_TYPES.NEUTRON) {
+                     const maxN = periodicTable.getElement(this.elementNumber).maxNeutrons;
+                    if (this.neutrons < maxN) {
+                         this.neutrons++;
+                    } else { return false;} 
+                } else { return false; } 
+                
+                this.updateMassAndRadius();
+                if (this.protons !== this.elementNumber && this.protons <= MAX_ELEMENT_NUMBER) {
+                    this.elementNumber = this.protons;
+                    const newElementData = periodicTable.getElement(this.elementNumber);
+                    this.color = newElementData.color;
+                    this.symbol = newElementData.symbol;
+                }
+                return true;
+            }
+        }
+
+
+        // --- Quiz System ---
+        function getLocalizedQuizQuestions() {
+            let allQuestions = [...quizQuestions]; // Start with hardcoded questions
+            try {
+                const storedQuestions = localStorage.getItem("userContributedQuestions_v2"); // Using _v2 for new format
+                if (storedQuestions) {
+                    const contributed = JSON.parse(storedQuestions);
+                    // Filter contributed questions by current language IF they have a lang property
+                    const langFilteredContributed = contributed.filter(q => !q.lang || q.lang === currentLang);
+                    allQuestions = allQuestions.concat(langFilteredContributed);
+                }
+            } catch (e) {
+                log("Error loading contributed questions: " + e.message);
+            }
+            return allQuestions.filter(q => q.lang === currentLang || !q.lang); // Also include questions without specific lang
+        }
+
+        function startQuiz(aiElement) {
+            if (gameState.currentQuiz || gameState.isGameOver) return; 
+            
+            const availableQuestions = getLocalizedQuizQuestions();
+            if(availableQuestions.length === 0) {
+                log("No quiz questions available for current language.");
+                // If AI was a quiz element but no questions, player still "interacts"
+                // Player might just absorb it without points if it was a non-standard quiz trigger
+                if (gameState.player && aiElement && typeof aiElement.mass === 'number' && gameState.player.mass > aiElement.mass * 1.1) {
+                    gameState.player.swallowAI(aiElement); // Let player swallow if bigger
+                }
+                const index = gameState.aiElements.indexOf(aiElement);
+                if (index > -1) gameState.aiElements.splice(index, 1);
+                return;
+            }
+            const questionData = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+            gameState.currentQuiz = { ai: aiElement, question: questionData };
+            
+            quizQuestion.textContent = questionData.q;
+            quizOptions.innerHTML = "";
+            questionData.o.forEach((option, index) => {
+                const button = document.createElement("button");
+                button.textContent = option;
+                button.classList.add("quizOption");
+                button.onclick = () => handleQuizAnswer(index);
+                quizOptions.appendChild(button);
+            });
+            
+            quizContainer.style.display = "flex"; 
+            pauseGame();
+        }
+
+        function handleQuizAnswer(selectedIndex) {
+            const quiz = gameState.currentQuiz;
+            if (!quiz) return;
+
+            const aiWhoAsked = quiz.ai; 
+
+            if (selectedIndex === quiz.question.a) {
+                showNotification(i18n("quizCorrect", { points: 75 })); 
+                gameState.score += 75;
+                if (gameState.player && aiWhoAsked) {
+                    const massGain = Math.max(1, Math.floor(aiWhoAsked.mass * 0.5)); 
+                    gameState.player.protons += Math.floor(massGain / 2); 
+                    gameState.player.neutrons += Math.ceil(massGain / 2);
+                    gameState.player.updateElementProperties();
+                    gameState.player.checkEvolution();
+                }
+            } else {
+                showNotification(i18n("quizIncorrect"));
+            }
+            if (aiWhoAsked) {
+                const index = gameState.aiElements.indexOf(aiWhoAsked);
+                if (index > -1) {
+                    gameState.aiElements.splice(index, 1);
+                }
+            }
+            
+            closeQuiz();
+        }
+
+        function closeQuiz() {
+            quizContainer.style.display = "none";
+            gameState.currentQuiz = null;
+            resumeGame();
+        }
+
+        // --- Skill System (Integration with ElementSkillsSystem) ---
+        function updateSkills() { 
+            if (!elementSkillsSystem || !gameState.player) return;
+
+            const needsBarUpdate = elementSkillsSystem.updateActiveSkillTimers();
+            if (needsBarUpdate) {
+                updateSkillBar();
+            }
+        }
+
+        function updateSkillBar() {
+            if (!elementSkillsSystem || !gameState.player) {
+                skillBar.innerHTML = ""; 
+                return;
+            }
+            skillBar.innerHTML = ""; 
+
+            const playerProtonCount = gameState.player.elementNumber;
+            const currentCategory = periodicTable.getElementCategory(playerProtonCount);
+            const skillIdForCategory = periodicTable.getCategoryInfo(currentCategory).skill;
+
+            if (skillIdForCategory && elementSkillsSystem.skills[skillIdForCategory]) {
+                const skillData = elementSkillsSystem.skills[skillIdForCategory]; 
+                const skillState = elementSkillsSystem.getSkillState(skillIdForCategory);
+
+                const button = document.createElement("div");
+                button.classList.add("skillButton");
+                
+                const displaySymbol = periodicTable.getElement(playerProtonCount).symbol;
+                button.textContent = displaySymbol; 
+                
+                const keyHint = document.createElement("div");
+                keyHint.classList.add("skillKey");
+                keyHint.textContent = "SPACE"; 
+                button.appendChild(keyHint);
+                
+                const cooldownOverlay = document.createElement("div");
+                cooldownOverlay.classList.add("skillCooldown");
+                button.appendChild(cooldownOverlay);
+
+                switch (skillState.status) {
+                    case "ready":
+                        button.classList.add("ready");
+                        button.onclick = () => elementSkillsSystem.tryActivateSkill(skillIdForCategory);
+                        button.title = `${i18n(skillIdForCategory)} - ${i18n("skillReady")}`;
+                        break;
+                    case "active":
+                        button.classList.add("active");
+                        button.title = `${i18n(skillIdForCategory)} - ${i18n("skillActiveStatus") || "Active"}`;
+                        break;
+                    case "cooldown":
+                        cooldownOverlay.style.height = `${100 - skillState.percent}%`;
+                        button.title = `${i18n(skillIdForCategory)} - ${i18n("skillCooldown", { time: skillState.remaining.toFixed(1) })}`;
+                        break;
+                    case "unavailable":
+                         button.style.opacity = "0.3";
+                         button.style.cursor = "not-allowed";
+                         button.title = i18n("skillUnavailable") || "Skill Unavailable";
+                        break;
+                }
+                skillBar.appendChild(button);
+            } else {
+                // skillBar.textContent = i18n("noSkillForElement") || "No Skill";
+            }
+        }
+
+
+        // --- Synthesis System (Original from adjusted_game.html) ---
+        function updateSynthesisPanel() { 
+            synthesisList.innerHTML = "";
+            for (const product in synthesisRecipes) {
+                const recipe = synthesisRecipes[product];
+                let canSynthesize = true;
+                let requirementsText = [];
+                for (const elementSymbol in recipe.requires) {
+                    const requiredCount = recipe.requires[elementSymbol];
+                    const currentCount = gameState.synthesisInventory[elementSymbol] || 0;
+                    requirementsText.push(`${elementSymbol}: ${currentCount}/${requiredCount}`);
+                    if (currentCount < requiredCount) {
+                        canSynthesize = false;
+                    }
+                }
+                
+                const li = document.createElement("li");
+                li.textContent = `${product} (${requirementsText.join(", ")})`;
+                if (canSynthesize) {
+                    li.style.color = "#2ecc71";
+                    const synthButton = document.createElement("button");
+                    synthButton.textContent = i18n("synthesizeButton") || "Synthesize";
+                    synthButton.onclick = () => trySynthesize(product);
+                    li.appendChild(synthButton);
+                } else {
+                    li.style.color = "#95a5a6";
+                }
+                synthesisList.appendChild(li);
+            }
+            synthesisPanel.style.display = (gameState.player && Object.keys(synthesisRecipes).length > 0) ? "block" : "none";
+        }
+        
+        function trySynthesize(productName) { 
+            const recipe = synthesisRecipes[productName];
+            if (!recipe) return;
+
+            for (const elementSymbol in recipe.requires) {
+                if ((gameState.synthesisInventory[elementSymbol] || 0) < recipe.requires[elementSymbol]) {
+                    showNotification(i18n("synthesisFailed") || "Synthesis Failed: Missing components");
+                    return;
+                }
+            }
+            for (const elementSymbol in recipe.requires) {
+                gameState.synthesisInventory[elementSymbol] -= recipe.requires[elementSymbol];
+            }
+            gameState.score += recipe.points;
+            showNotification(`${productName} ${i18n("synthesisSuccess") || "Synthesized!"} +${recipe.points} pts`);
+            updateSynthesisPanel();
+            updateScore();
+        }
+
+        function addToSynthesisInventory(elementSymbol, count = 1) { 
+            gameState.synthesisInventory[elementSymbol] = (gameState.synthesisInventory[elementSymbol] || 0) + count;
+        }
+
+        // --- Leaderboard System ---
+        function loadHighScores() {
+            try {
+                const scores = localStorage.getItem("chemicalAgarHighScores_v2"); 
+                gameState.highScores = scores ? JSON.parse(scores) : [];
+                gameState.highScores.sort((a, b) => b.score - a.score);
+            } catch (e) {
+                log("Error loading high scores: " + e.message);
+                gameState.highScores = [];
+                 localStorage.removeItem("chemicalAgarHighScores_v2"); 
+            }
+        }
+
+        function saveHighScore(name, score) {
+            loadHighScores(); 
+            gameState.highScores.push({ name, score: Math.floor(score) }); 
+            gameState.highScores.sort((a, b) => b.score - a.score);
+            gameState.highScores = gameState.highScores.slice(0, 10); 
+            try {
+                localStorage.setItem("chemicalAgarHighScores_v2", JSON.stringify(gameState.highScores));
+            } catch (e) {
+                log("Error saving high score: " + e.message);
+            }
+        }
+
+        function displayLeaderboard() {
+            loadHighScores();
+            leaderboardList.innerHTML = "";
+            if (gameState.highScores.length === 0) {
+                const li = document.createElement("li");
+                li.textContent = i18n("noHighScores");
+                leaderboardList.appendChild(li);
+            } else {
+                gameState.highScores.forEach((entry, index) => {
+                    const li = document.createElement("li");
+                    const rankSpan = document.createElement("span");
+                    rankSpan.textContent = `#${index + 1} ${entry.name || i18n("anonymousPlayer")}`;
+                    const scoreSpan = document.createElement("span");
+                    scoreSpan.textContent = entry.score;
+                    li.appendChild(rankSpan);
+                    li.appendChild(scoreSpan);
+                    leaderboardList.appendChild(li);
+                });
+            }
+            mainMenu.style.display = "none";
+            gameOverScreen.style.display = "none";
+            leaderboardScreen.style.display = "flex";
+            contributionScreen.style.display = "none"; // MODIFICATION: Hide contrib screen
+        }
+
+        // --- Game Flow Functions ---
+        const MAX_PARTICLES = 120; 
+        const MAX_AI_ELEMENTS = 12; 
+
+        function getSpawnPositionAroundPlayer(minDistFactorCanvas = 0.7, maxDistFactorCanvas = 1.5) {
+            if (!gameState.player) return null;
+
+            const playerX = gameState.player.x;
+            const playerY = gameState.player.y;
+            
+            const angle = random(0, Math.PI * 2);
+            const baseDistFromPlayer = Math.max(canvas.width, canvas.height); 
+            const spawnDist = random(baseDistFromPlayer * minDistFactorCanvas, baseDistFromPlayer * maxDistFactorCanvas);
+
+            const x = playerX + Math.cos(angle) * spawnDist;
+            const y = playerY + Math.sin(angle) * spawnDist;
+            return { x, y };
+        }
+
+
+        function spawnParticle() {
+            if (gameState.particles.length >= MAX_PARTICLES) return;
+
+            const typesArray = Object.values(PARTICLE_TYPES);
+            const type = typesArray[Math.floor(Math.random() * typesArray.length)];
+            
+            const pos = getSpawnPositionAroundPlayer(0.6, 1.2); 
+            if (!pos) return;
+            let { x, y } = pos;
+            gameState.particles.push(new Particle(x, y, type));
+        }
+
+        function spawnAIElement() { 
+            if (gameState.aiElements.length >= MAX_AI_ELEMENTS || !gameState.player) return;
+
+            const playerElementNum = gameState.player.elementNumber;
+            let aiElementNum = Math.floor(random(Math.max(1, playerElementNum - 5), Math.min(MAX_ELEMENT_NUMBER, playerElementNum + 8)));
+            aiElementNum = Math.max(1, Math.min(aiElementNum, MAX_ELEMENT_NUMBER)); 
+
+            const isQuiz = Math.random() < 0.1; 
+            
+            const pos = getSpawnPositionAroundPlayer(0.8, 1.5); 
+            if (!pos) return;
+            let { x, y } = pos;
+            
+            const tempRadius = 12 + Math.pow(aiElementNum, 0.43) * 2.2; 
+            
+            const minSpawnDistFromPlayer = gameState.player.radius + tempRadius + Math.min(canvas.width, canvas.height) * 0.2; 
+            if (distance(x, y, gameState.player.x, gameState.player.y) < minSpawnDistFromPlayer) {
+                const repositionAngle = Math.atan2(y - gameState.player.y, x - gameState.player.x) || random(0, Math.PI*2);
+                x = gameState.player.x + Math.cos(repositionAngle) * (minSpawnDistFromPlayer + 50); 
+                y = gameState.player.y + Math.sin(repositionAngle) * (minSpawnDistFromPlayer + 50);
+            }
+            gameState.aiElements.push(new AIElement(x, y, aiElementNum, isQuiz));
+        }
+
+
+        function updateCamera() {
+            if (!gameState.player) return;
+            const targetCamX = gameState.player.x - canvas.width / 2;
+            const targetCamY = gameState.player.y - canvas.height / 2;
+            const lerpFactor = 0.08; 
+
+            gameState.camera.x += (targetCamX - gameState.camera.x) * lerpFactor;
+            gameState.camera.y += (targetCamY - gameState.camera.y) * lerpFactor;
+        }
+
+        function drawGrid() {
+            const gridSize = 60; 
+            const lineOpacity = 0.08; 
+            ctx.strokeStyle = `rgba(100, 150, 255, ${lineOpacity})`;
+            ctx.lineWidth = 1;
+
+            const startX = - (gameState.camera.x % gridSize);
+            const startY = - (gameState.camera.y % gridSize);
+
+            for (let x = startX; x < canvas.width; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for (let y = startY; y < canvas.height; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+        }
+        
+        function updateScore() {
+            scoreDisplay.textContent = i18n("score", { score: Math.floor(gameState.score) });
+        }
+        function updateScoreDisplay() {
+            updateScore();
+        }
+
+
+        function updateElementInfo() { 
+            if (!gameState.player) return;
+            const elementData = periodicTable.getElement(gameState.player.elementNumber);
+            const elementName = i18n(elementData.symbol) || elementData.name; 
+            const elementFullName = i18n(elementData.symbol + "_full") || elementData.fullName;
+            const description = elementData.description || (i18n(elementData.symbol + "_desc") || ''); 
+            
+            elementInfo.innerHTML = `${elementData.symbol}<br>${elementName} (${elementFullName})<br><small style="font-size: 0.65em; color: #cccccc;">${description}</small>`;
+        }
+
+        function updateEvolutionProgress() {
+            if (!gameState.player) return;
+            const progress = gameState.player.getEvolutionProgress();
+            evolutionProgressElement.style.width = `${progress.percent}%`;
+            const nextElementSymbol = progress.next;
+            const nextElementData = periodicTable.getElement(gameState.player.elementNumber + 1);
+            const nextElementName = nextElementData ? (i18n(nextElementSymbol) || nextElementData.name) : "";
+
+            evolutionText.textContent = i18n("evolutionProgress", { 
+                percent: Math.floor(progress.percent), 
+                next: `${nextElementSymbol}${nextElementName ? ' ('+nextElementName+')' : ''}`
+            });
+        }
+
+        function pauseGame() {
+            if (gameState.gameLoopId) {
+                cancelAnimationFrame(gameState.gameLoopId);
+                gameState.gameLoopId = null;
+                log("游戏暂停");
+            }
+        }
+
+        function resumeGame() {
+            if (!gameState.gameLoopId && !gameState.isGameOver && 
+                mainMenu.style.display === "none" && 
+                gameOverScreen.style.display === "none" &&
+                quizContainer.style.display === "none" &&
+                contributionScreen.style.display === "none" && // MODIFICATION: Check contrib screen
+                leaderboardScreen.style.display === "none") {
+                gameState.gameLoopId = requestAnimationFrame(gameLoop);
+                log("游戏恢复");
+            }
+        }
+
+        function update() { 
+            if (gameState.isGameOver || !gameState.player || gameState.currentQuiz) return;
+
+            gameState.player.move();
+            
+            for (let i = gameState.aiElements.length - 1; i >= 0; i--) {
+                const ai = gameState.aiElements[i];
+                ai.move();
+                for (let j = gameState.particles.length - 1; j >=0; j--) {
+                    const p = gameState.particles[j];
+                    if (ai.state === "chase_particle" && ai.target === p && distance(ai.x, ai.y, p.x, p.y) < ai.radius) {
+                        if (ai.swallowParticle(p)) { 
+                            gameState.particles.splice(j, 1);
+                            if (ai.target === p) ai.target = null; 
+                            ai.stateTimer = 0; 
+                        }
+                    }
+                }
+            }
+
+            for (let i = gameState.particles.length - 1; i >= 0; i--) {
+                if (!gameState.particles[i].move()) { 
+                    gameState.particles.splice(i, 1);
+                }
+            }
+            
+            updateSkills(); 
+
+            for (let i = gameState.particles.length - 1; i >= 0; i--) {
+                const p = gameState.particles[i];
+                if (distance(gameState.player.x, gameState.player.y, p.x, p.y) < gameState.player.radius + p.radius * 0.5) { 
+                    if(gameState.player.swallowParticle(p)){
+                       gameState.particles.splice(i, 1);
+                    }
+                }
+            }
+            
+            for (let i = gameState.aiElements.length - 1; i >= 0; i--) {
+                const ai = gameState.aiElements[i];
+                const dist = distance(gameState.player.x, gameState.player.y, ai.x, ai.y);
+                
+                if (dist < gameState.player.radius + ai.radius) { 
+                    if (gameState.player.isInvincible) {
+                        const angle = Math.atan2(ai.y - gameState.player.y, ai.x - gameState.player.x);
+                        ai.x += Math.cos(angle) * 5; 
+                        ai.y += Math.sin(angle) * 5;
+                        ai.stateTimer = 0; 
+                        continue; 
+                    }
+
+                    if (gameState.player.mass > ai.mass * 1.1) { // Bigger eats smaller based on mass
+                        if (ai.isQuiz) {
+                            startQuiz(ai); // This handles quiz AI
+                        } else {
+                            gameState.player.swallowAI(ai);
+                            gameState.aiElements.splice(i, 1);
+                        }
+                    } else if (ai.mass > gameState.player.mass * 1.1) { // AI is bigger
+                        gameOver();
+                        return; 
+                    } else { // Similar mass, bounce
+                        const angle = Math.atan2(gameState.player.y - ai.y, gameState.player.x - ai.x);
+                        const pushStrength = 2;
+                        gameState.player.vx += Math.cos(angle) * pushStrength * 0.2;
+                        gameState.player.vy += Math.sin(angle) * pushStrength * 0.2;
+
+
+                        ai.x -= Math.cos(angle) * pushStrength;
+                        ai.y -= Math.sin(angle) * pushStrength;
+                        ai.stateTimer = 0; 
+                    }
+                }
+            }
+            
+            for (let i = 0; i < gameState.aiElements.length; i++) {
+                for (let j = i + 1; j < gameState.aiElements.length; j++) {
+                    const ai1 = gameState.aiElements[i];
+                    const ai2 = gameState.aiElements[j];
+                    const dist = distance(ai1.x, ai1.y, ai2.x, ai2.y);
+                    if (dist < ai1.radius + ai2.radius) {
+                        const angle = Math.atan2(ai2.y - ai1.y, ai2.x - ai1.x);
+                        const overlap = (ai1.radius + ai2.radius) - dist;
+                        const push = overlap / 2 * 0.5; 
+
+                        ai1.x -= Math.cos(angle) * push;
+                        ai1.y -= Math.sin(angle) * push;
+                        ai2.x += Math.cos(angle) * push;
+                        ai2.y += Math.sin(angle) * push;
+                        
+                        ai1.stateTimer = Math.min(ai1.stateTimer, 0.2); 
+                        ai2.stateTimer = Math.min(ai2.stateTimer, 0.2);
+                    }
+                }
+            }
+
+            if (gameState.particles.length < MAX_PARTICLES) spawnParticle();
+            if (gameState.aiElements.length < MAX_AI_ELEMENTS) spawnAIElement();
+
+            const despawnRadius = Math.max(canvas.width, canvas.height) * 2.5; 
+            if (gameState.player) {
+                for (let i = gameState.particles.length - 1; i >= 0; i--) {
+                    const p = gameState.particles[i];
+                    if (distance(gameState.player.x, gameState.player.y, p.x, p.y) > despawnRadius + p.radius) {
+                        gameState.particles.splice(i, 1);
+                    }
+                }
+
+                for (let i = gameState.aiElements.length - 1; i >= 0; i--) {
+                    const ai = gameState.aiElements[i];
+                    if (distance(gameState.player.x, gameState.player.y, ai.x, ai.y) > despawnRadius + ai.radius) {
+                        gameState.aiElements.splice(i, 1);
+                    }
+                }
+            }
+
+
+            updateCamera();
+        }
+
+        function draw() { 
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+
+            gameState.particles.forEach(p => p.draw());
+            gameState.aiElements.forEach(ai => ai.draw()); 
+            if (gameState.player) {
+                if (typeof gameState.drawPlayer === 'function') {
+                    gameState.drawPlayer();
+                } else { 
+                    gameState.player.draw();
+                }
+            }
+        }
+
+        function gameLoop() {
+            if (gameState.isGameOver && mainMenu.style.display === 'none' && gameOverScreen.style.display === 'none') {
+                 gameOver(); 
+                 return; 
+            }
+            if (gameState.isGameOver || gameState.currentQuiz || mainMenu.style.display !== 'none' || contributionScreen.style.display === 'flex') { // MODIFICATION: Check contrib screen
+                 if (!gameState.isGameOver && !gameState.currentQuiz && mainMenu.style.display === 'none' && contributionScreen.style.display !== 'flex') {
+                 } else {
+                    gameState.gameLoopId = requestAnimationFrame(gameLoop);
+                    return;
+                 }
+            }
+            
+            update(); 
+            draw();   
+            gameState.gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            log("开始游戏");
+            gameState.score = 0;
+            gameState.particles = [];
+            gameState.aiElements = []; 
+            gameState.isGameOver = false;
+            gameState.synthesisInventory = {}; 
+            gameState.player = new Player(gameState.worldSize.width / 2, gameState.worldSize.height / 2); 
+            
+            gameState.player.vx = 0; 
+            gameState.player.vy = 0; 
+
+            gameState.drawPlayer = gameState.player.draw.bind(gameState.player); 
+            
+            for (let i = 0; i < MAX_PARTICLES * 0.7; i++) spawnParticle(); 
+            for (let i = 0; i < MAX_AI_ELEMENTS * 0.5; i++) spawnAIElement(); 
+
+            if (elementSkillsSystem) {
+                elementSkillsSystem.resetPlayerSkills(); 
+            } else {
+                elementSkillsSystem = new ElementSkillsSystem(gameState);
+                elementSkillsSystem.resetPlayerSkills();
+            }
+            
+            updateScore();
+            updateElementInfo();
+            updateEvolutionProgress();
+            updateSkillBar();
+            updateSynthesisPanel(); 
+            
+            mainMenu.style.display = "none";
+            gameOverScreen.style.display = "none";
+            leaderboardScreen.style.display = "none";
+            contributionScreen.style.display = "none"; // MODIFICATION: Hide contrib screen
+            quizContainer.style.display = "none"; 
+
+            if (gameState.gameLoopId) cancelAnimationFrame(gameState.gameLoopId);
+            gameState.gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        function gameOver() {
+            if (gameState.isGameOver && gameOverScreen.style.display === "flex") return; 
+
+            log("游戏结束");
+            gameState.isGameOver = true;
+            if (gameState.gameLoopId) {
+                cancelAnimationFrame(gameState.gameLoopId);
+                gameState.gameLoopId = null;
+            }
+            finalScoreText.textContent = i18n("finalScore", { score: Math.floor(gameState.score) }); // Use finalScoreText
+            gameOverScreen.style.display = "flex";
+            
+            setTimeout(() => {
+                const playerName = prompt(i18n("enterNamePrompt"), i18n("defaultPlayerName")) || i18n("anonymousPlayer");
+                saveHighScore(playerName, gameState.score);
+            }, 100); 
+        }
+
+        function showMainMenu() {
+            if (gameState.gameLoopId) {
+                cancelAnimationFrame(gameState.gameLoopId);
+                gameState.gameLoopId = null;
+            }
+            gameState.isGameOver = true; 
+            mainMenu.style.display = "flex";
+            gameOverScreen.style.display = "none";
+            leaderboardScreen.style.display = "none";
+            contributionScreen.style.display = "none"; // MODIFICATION: Hide contrib screen
+            quizContainer.style.display = "none";
+            if (gameState.player) gameState.player = null; 
+        }
+
+        function showInstructions() {
+            alert(i18n("instructionsText"));
+        }
+        
+        // MODIFICATION: Function to show question contribution screen
+        function showContributionScreen() {
+            mainMenu.style.display = "none";
+            contributionScreen.style.display = "flex";
+            leaderboardScreen.style.display = "none";
+            gameOverScreen.style.display = "none";
+             if (gameState.gameLoopId) { // Pause game if running
+                cancelAnimationFrame(gameState.gameLoopId);
+                gameState.gameLoopId = null;
+            }
+        }
+
+        // MODIFICATION: Function to handle question submission
+        function handleQuestionSubmission() {
+            const question = contribQuestionText.value.trim();
+            const opt1 = contribOpt1Text.value.trim();
+            const opt2 = contribOpt2Text.value.trim();
+            const opt3 = contribOpt3Text.value.trim();
+            const opt4 = contribOpt4Text.value.trim();
+            
+            if (!question || !opt1 || !opt2 || !opt3 || !opt4) {
+                showNotification(i18n("contributionError"), "error");
+                return;
+            }
+            
+            const options = [opt1, opt2, opt3, opt4];
+            let correctAnswerIndex = -1;
+            const correctAnswerRadios = document.getElementsByName("correctContrib");
+            for (let i = 0; i < correctAnswerRadios.length; i++) {
+                if (correctAnswerRadios[i].checked) {
+                    correctAnswerIndex = parseInt(correctAnswerRadios[i].value);
+                    break;
+                }
+            }
+
+            if (correctAnswerIndex === -1) { // Should not happen with default checked
+                showNotification(i18n("contributionError"), "error"); // Or a more specific error
+                return;
+            }
+
+            const newQuestion = {
+                q: question,
+                o: options,
+                a: correctAnswerIndex,
+                lang: currentLang // Store with the language it was contributed in
+            };
+
+            try {
+                let contributedQuestions = JSON.parse(localStorage.getItem("userContributedQuestions_v2")) || [];
+                contributedQuestions.push(newQuestion);
+                localStorage.setItem("userContributedQuestions_v2", JSON.stringify(contributedQuestions));
+                showNotification(i18n("contributionSuccess"), "success");
+                
+                // Clear form
+                contribQuestionText.value = "";
+                contribOpt1Text.value = "";
+                contribOpt2Text.value = "";
+                contribOpt3Text.value = "";
+                contribOpt4Text.value = "";
+                correctAnswerRadios[0].checked = true; // Reset radio to first option
+
+            } catch (e) {
+                log("Error saving contributed question: " + e.message);
+                showNotification("Error saving question.", "error");
+            }
+        }
+
+
+        // Event Listeners
+        window.addEventListener("resize", resizeCanvas);
+        document.addEventListener("keydown", (e) => {
+            gameState.keysPressed[e.key.toLowerCase()] = true;
+            
+            if (e.code === "Space" || e.key === " ") {
+                 e.preventDefault(); 
+                if (elementSkillsSystem && gameState.player && !gameState.currentQuiz && !gameState.isGameOver) {
+                    const playerProtonCount = gameState.player.elementNumber;
+                    const currentCategory = periodicTable.getElementCategory(playerProtonCount);
+                    const skillIdForCategory = periodicTable.getCategoryInfo(currentCategory).skill;
+                    if (skillIdForCategory) {
+                        elementSkillsSystem.tryActivateSkill(skillIdForCategory);
+                    }
+                }
+            }
+            
+            if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(e.key.toLowerCase())) { 
+                 if(!gameState.isGameOver && mainMenu.style.display === "none" && !gameState.currentQuiz && contributionScreen.style.display === "none") {
+                    e.preventDefault();
+                 }
+            }
+            if (e.key === "Escape") {
+                if (gameState.currentQuiz) {
+                    closeQuiz();
+                } 
+            }
+        });
+        document.addEventListener("keyup", (e) => {
+            gameState.keysPressed[e.key.toLowerCase()] = false;
+        });
+        
+        canvas.addEventListener("mousemove", (e) => { 
+            const rect = canvas.getBoundingClientRect();
+            gameState.mousePos.x = e.clientX - rect.left;
+            gameState.mousePos.y = e.clientY - rect.top;
+        });
+
+
+        startButton.addEventListener("click", startGame);
+        leaderboardButton.addEventListener("click", displayLeaderboard);
+        instructionsButton.addEventListener("click", showInstructions);
+        restartButton.addEventListener("click", startGame);
+        menuButton.addEventListener("click", showMainMenu);
+        backToMenuButton.addEventListener("click", showMainMenu);
+        
+        languageSwitcher.addEventListener("click", function(e) {
+            if (e.target.tagName === "BUTTON" && e.target.dataset.lang) {
+                log("Language button clicked: " + e.target.dataset.lang);
+                setLanguage(e.target.dataset.lang);
+                gameState.language = e.target.dataset.lang; 
+                 if(elementSkillsSystem) elementSkillsSystem.gameState.language = e.target.dataset.lang; 
+            }
+        });
+
+        // MODIFICATION: Event listeners for Contribution Screen
+        questionContributionButton.addEventListener("click", showContributionScreen);
+        submitContributionButton.addEventListener("click", handleQuestionSubmission);
+        backToMenuFromContribButton.addEventListener("click", showMainMenu);
+        
+
+        // Initialization
+        function init() {
+            log("Initializing game...");
+            resizeCanvas();
+            loadHighScores(); 
+            
+            elementSkillsSystem = new ElementSkillsSystem(gameState);
+            gameState.elementSkillsSystem = elementSkillsSystem; 
+
+            setLanguage(currentLang); 
+            gameState.language = currentLang; 
+             if(elementSkillsSystem) elementSkillsSystem.gameState.language = currentLang;
+
+
+            let progress = 0;
+            const loadingTexts = ["Loading assets...", "Initializing physics...", "Building elements...", "Calibrating skills...", "Finalizing..."];
+            let textIdx = 0;
+            loadingText.textContent = i18n("loading") + " " + loadingTexts[textIdx];
+
+            const loadingInterval = setInterval(() => {
+                progress += 10; 
+                loadingProgress.style.width = `${progress}%`;
+                
+                if (progress % 30 === 0 && textIdx < loadingTexts.length -1 ) {
+                    textIdx++;
+                    loadingText.textContent = i18n("loading") + " " + (i18n(loadingTexts[textIdx].toLowerCase().replace(/\s/g, '_')) || loadingTexts[textIdx]);
+                }
+
+                if (progress >= 100) {
+                    clearInterval(loadingInterval);
+                    loadingScreen.style.display = "none";
+                    mainMenu.style.display = "flex";
+                    log("Game loaded successfully.");
+                }
+            }, 150); 
+        }
+
+        // Start initialization when window loads
+        window.onload = init;
+        
+        // --- AIPlayerSystem.js content (already included and mostly for reference, not directly modified here unless necessary) ---
+        class AIPlayerSystem { /* ... content as before ... */ }
+
+        // --- SynthesisSystem.js content (already included and mostly for reference) ---
+        class SynthesisSystem { /* ... content as before ... */ }
+
+        // --- End of Combined JavaScript --- 
+    </script>
+</body>
+</html>
